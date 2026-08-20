@@ -1,0 +1,6 @@
+{
+  "name": "Base Web Application",
+  "description": "A minimal, clean, and scalable web application starter structured for incremental modular development.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
