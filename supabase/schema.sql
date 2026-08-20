@@ -135,3 +135,111 @@ CREATE INDEX IF NOT EXISTS idx_products_user_id ON public.products(user_id);
 CREATE INDEX IF NOT EXISTS idx_products_company_id ON public.products(company_id);
 CREATE INDEX IF NOT EXISTS idx_products_barcode ON public.products(barcode);
 CREATE INDEX IF NOT EXISTS idx_products_category ON public.products(category);
+
+
+-- ============================================================================
+-- 3. TABELA: public.stock_movements
+-- Armazena o histórico de entradas e saídas de estoque de cada produto.
+-- Relacionamento com auth.users, public.companies e public.products.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.stock_movements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  company_id UUID REFERENCES public.companies(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES public.products(id) ON DELETE CASCADE NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('entrada', 'saida')),
+  quantity NUMERIC(12,2) NOT NULL CHECK (quantity > 0),
+  movement_date TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Habilitar Row Level Security (RLS) na tabela stock_movements
+ALTER TABLE public.stock_movements ENABLE ROW LEVEL SECURITY;
+
+-- Limpar políticas antigas se existirem para evitar conflito
+DROP POLICY IF EXISTS "Usuários autenticados podem visualizar suas próprias movimentações" ON public.stock_movements;
+DROP POLICY IF EXISTS "Usuários autenticados podem cadastrar suas próprias movimentações" ON public.stock_movements;
+DROP POLICY IF EXISTS "Usuários autenticados podem atualizar suas próprias movimentações" ON public.stock_movements;
+DROP POLICY IF EXISTS "Usuários autenticados podem excluir suas próprias movimentações" ON public.stock_movements;
+
+-- Políticas de RLS para stock_movements:
+-- 3.1 SELECT: Usuário autenticado visualiza somente as movimentações da sua empresa
+CREATE POLICY "Usuários autenticados podem visualizar suas próprias movimentações"
+ON public.stock_movements
+FOR SELECT
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- 3.2 INSERT: Usuário autenticado cadastra movimentações associadas ao seu auth.uid()
+CREATE POLICY "Usuários autenticados podem cadastrar suas próprias movimentações"
+ON public.stock_movements
+FOR INSERT
+TO authenticated
+WITH CHECK (auth.uid() = user_id);
+
+-- 3.3 UPDATE: Usuário autenticado atualiza apenas suas próprias movimentações
+CREATE POLICY "Usuários autenticados podem atualizar suas próprias movimentações"
+ON public.stock_movements
+FOR UPDATE
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- 3.4 DELETE: Usuário autenticado exclui apenas suas próprias movimentações
+CREATE POLICY "Usuários autenticados podem excluir suas próprias movimentações"
+ON public.stock_movements
+FOR DELETE
+TO authenticated
+USING (auth.uid() = user_id);
+
+-- Índices para performance
+CREATE INDEX IF NOT EXISTS idx_stock_movements_user_id ON public.stock_movements(user_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_product_id ON public.stock_movements(product_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_date ON public.stock_movements(movement_date);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_type ON public.stock_movements(type);
+
+-- ============================================================================
+-- 4. TRIGGER & FUNCTION: Atualização automática de estoque
+-- Aumenta estoque na 'entrada' e reduz estoque na 'saida' impedindo saldo negativo.
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.handle_stock_movement_update()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_current_stock NUMERIC(12,2);
+BEGIN
+  -- Obter o estoque atual do produto
+  SELECT current_stock INTO v_current_stock
+  FROM public.products
+  WHERE id = NEW.product_id AND user_id = NEW.user_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Produto não encontrado para atualização de estoque.';
+  END IF;
+
+  IF (NEW.type = 'entrada') THEN
+    UPDATE public.products
+    SET current_stock = current_stock + NEW.quantity,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = NEW.product_id AND user_id = NEW.user_id;
+  ELSIF (NEW.type = 'saida') THEN
+    -- Validação de estoque negativo
+    IF (v_current_stock < NEW.quantity) THEN
+      RAISE EXCEPTION 'Estoque insuficiente. Estoque atual: %, Quantidade solicitada: %', v_current_stock, NEW.quantity;
+    END IF;
+
+    UPDATE public.products
+    SET current_stock = current_stock - NEW.quantity,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = NEW.product_id AND user_id = NEW.user_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_after_stock_movement_insert ON public.stock_movements;
+CREATE TRIGGER tr_after_stock_movement_insert
+AFTER INSERT ON public.stock_movements
+FOR EACH ROW
+EXECUTE FUNCTION public.handle_stock_movement_update();

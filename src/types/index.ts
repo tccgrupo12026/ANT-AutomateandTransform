@@ -73,6 +73,36 @@ export interface ProductFormData {
   min_stock: number | string;
 }
 
+export type MovementType = 'entrada' | 'saida';
+
+export interface StockMovement {
+  id?: string;
+  user_id: string;
+  company_id?: string;
+  product_id: string;
+  product_name?: string;
+  type: MovementType;
+  quantity: number;
+  movement_date: string;
+  notes?: string;
+  created_at?: string;
+  product?: {
+    name: string;
+    category?: string;
+    current_stock?: number;
+    sale_price?: number;
+    cost_price?: number;
+  };
+}
+
+export interface MovementFormData {
+  product_id: string;
+  type: MovementType;
+  quantity: number | string;
+  movement_date: string;
+  notes: string;
+}
+
 export interface CompanyProfile {
   name: string;
   tradeName?: string;
