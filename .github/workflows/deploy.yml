@@ -28,18 +28,17 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
+      - name: Configurar Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 20
-          cache: 'npm'
+          bun-version: latest
 
       - name: Instalar dependências
-        run: npm ci || npm install
+        run: bun install
 
       - name: Build dos arquivos de produção com Vite (dist)
         run: |
-          npm run build
+          bun run build
           # Evita que o Jekyll ignore arquivos estáticos no GitHub Pages
           touch dist/.nojekyll
           # Fallback SPA para rotas e recarregamento sem erro 404
