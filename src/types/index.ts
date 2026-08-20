@@ -15,6 +15,7 @@ export type NavigationSection =
   | 'produtos'
   | 'estoque'
   | 'movimentacoes'
+  | 'financeiro'
   | 'precificacao'
   | 'saude_negocio'
   | 'relatorios'
@@ -101,6 +102,42 @@ export interface MovementFormData {
   quantity: number | string;
   movement_date: string;
   notes: string;
+}
+
+export type TransactionType = 'receita' | 'despesa';
+
+export interface FinancialTransaction {
+  id?: string;
+  user_id: string;
+  company_id?: string;
+  type: TransactionType;
+  description: string;
+  amount: number;
+  transaction_date: string; // YYYY-MM-DD
+  category: string;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FinancialTransactionFormData {
+  type: TransactionType;
+  description: string;
+  amount: number | string;
+  transaction_date: string;
+  category: string;
+  notes: string;
+}
+
+export interface FinancialSummaryMetrics {
+  currentMonthRevenue: number;
+  currentMonthExpense: number;
+  currentMonthProfit: number;
+  previousMonthRevenue: number;
+  revenueGrowthPercentage: number | null;
+  currentMonthTransactionsCount: number;
+  currentMonthRevenueCount: number;
+  currentMonthExpenseCount: number;
 }
 
 export interface CompanyProfile {

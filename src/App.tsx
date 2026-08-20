@@ -18,6 +18,7 @@ import { OverviewView } from './components/views/OverviewView';
 import { ProductsView } from './components/views/ProductsView';
 import { StockView } from './components/views/StockView';
 import { MovementsView } from './components/views/MovementsView';
+import { FinancialView } from './components/views/FinancialView';
 import { PricingView } from './components/views/PricingView';
 import { BusinessHealthView } from './components/views/BusinessHealthView';
 import { ReportsView } from './components/views/ReportsView';
@@ -63,6 +64,8 @@ function AppContent() {
         return <ProductsView />;
       case 'movimentacoes':
         return <MovementsView />;
+      case 'financeiro':
+        return <FinancialView />;
       case 'precificacao':
         return <PricingView />;
       case 'saude_negocio':
