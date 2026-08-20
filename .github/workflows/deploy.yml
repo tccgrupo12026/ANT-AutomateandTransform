@@ -37,6 +37,11 @@ jobs:
         run: bun install
 
       - name: Build dos arquivos de produção com Vite (dist)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           bun run build
           # Evita que o Jekyll ignore arquivos estáticos no GitHub Pages
