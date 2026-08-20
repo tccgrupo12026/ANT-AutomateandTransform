@@ -1,19 +1,28 @@
+import React from 'react';
+
 interface FooterProps {
   id?: string;
 }
 
-export function Footer({ id }: FooterProps) {
+export const Footer: React.FC<FooterProps> = ({ id }) => {
   return (
-    <footer id={id} className="border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 py-6 mt-auto">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+    <footer
+      id={id}
+      className="border-t border-slate-200/80 dark:border-slate-800 bg-white/60 dark:bg-slate-900/60 py-5 px-4 sm:px-8 mt-auto"
+    >
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>
-          <span>Scalable Application Base &bull; Ready for GitHub &amp; Supabase integration</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+          <span className="font-semibold text-slate-700 dark:text-slate-300">
+            ANT — Automate and Transform
+          </span>
+          <span>&bull; Gestão simples, moderna e acessível para microempresas</span>
         </div>
-        <div className="font-mono text-slate-400 dark:text-slate-500">
-          Incremental Architecture &bull; Clean Foundation
+
+        <div className="flex items-center gap-4 text-[11px] text-slate-400">
+          <span>Decisões baseadas em regras e dados reais</span>
         </div>
       </div>
     </footer>
   );
-}
+};

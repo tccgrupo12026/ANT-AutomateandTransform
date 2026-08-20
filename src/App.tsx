@@ -1,87 +1,117 @@
 /**
- * @license
- * SPDX-License-Identifier: Apache-2.0
+ * ANT — Automate and Transform
+ * Plataforma web simples, moderna e acessível para gestão de microempresas
+ *
+ * Módulo de Autenticação com Supabase Auth & Proteção de Rotas
  */
 
+import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthView } from './components/auth/AuthView';
+import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
-import { ProjectStatus } from './components/ProjectStatus';
-import { StructureGuide } from './components/StructureGuide';
-import { Card } from './components/common/Card';
-import { Badge } from './components/common/Badge';
-import { GitBranch, Database } from 'lucide-react';
+import { AntLogo } from './components/common/AntLogo';
+import { NavigationSection } from './types';
+
+import { OverviewView } from './components/views/OverviewView';
+import { ProductsView } from './components/views/ProductsView';
+import { StockView } from './components/views/StockView';
+import { MovementsView } from './components/views/MovementsView';
+import { PricingView } from './components/views/PricingView';
+import { BusinessHealthView } from './components/views/BusinessHealthView';
+import { ReportsView } from './components/views/ReportsView';
+import { CompanyView } from './components/views/CompanyView';
+import { ProfileView } from './components/views/ProfileView';
+import { SettingsView } from './components/views/SettingsView';
+
+function AppContent() {
+  const { user, isLoading } = useAuth();
+  const [currentSection, setCurrentSection] = useState<NavigationSection>('inicio');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // 1. Loading State Screen
+  if (isLoading) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-6">
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="animate-pulse">
+            <AntLogo size={56} showText={true} subtitle={true} />
+          </div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 px-3 py-1.5 rounded-full border border-purple-200 dark:border-purple-800">
+            <span className="w-2 h-2 rounded-full bg-purple-600 animate-ping" />
+            Carregando ambiente seguro...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated State (Private Route Guard -> Login/Cadastro)
+  if (!user) {
+    return <AuthView />;
+  }
+
+  // 3. Authenticated State -> Workspace & Dashboard
+  const renderActiveView = () => {
+    switch (currentSection) {
+      case 'inicio':
+        return <OverviewView onNavigate={setCurrentSection} />;
+      case 'produtos':
+        return <ProductsView />;
+      case 'estoque':
+        return <ProductsView />;
+      case 'movimentacoes':
+        return <MovementsView />;
+      case 'precificacao':
+        return <PricingView />;
+      case 'saude_negocio':
+        return <BusinessHealthView />;
+      case 'relatorios':
+        return <ReportsView />;
+      case 'empresa':
+        return <CompanyView />;
+      case 'perfil':
+        return <CompanyView />;
+      case 'configuracoes':
+        return <SettingsView />;
+      default:
+        return <OverviewView onNavigate={setCurrentSection} />;
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-purple-600 selection:text-white">
+      {/* Navigation Sidebar */}
+      <Sidebar
+        currentSection={currentSection}
+        onSelectSection={setCurrentSection}
+        isOpenMobile={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
+      />
+
+      {/* Main Content Workspace (with margin offset for fixed desktop sidebar) */}
+      <div className="flex-1 flex flex-col min-w-0 lg:pl-64">
+        <Header
+          id="main-header"
+          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+        />
+
+        <main id="main-content" className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">
+          {renderActiveView()}
+        </main>
+
+        <Footer id="main-footer" />
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-indigo-600 selection:text-white">
-      <Header id="main-header" />
-
-      <main id="main-content" className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
-        {/* Foundation Introduction */}
-        <section id="hero-summary" className="space-y-2.5">
-          <div className="flex items-center gap-2">
-            <Badge variant="neutral">Starter Scaffold</Badge>
-            <span className="text-xs text-slate-400 font-mono">TypeScript &bull; React &bull; Tailwind</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
-            Clean &amp; Scalable Application Base
-          </h1>
-          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 max-w-2xl leading-relaxed">
-            Project initialized with a structured layout designed for incremental development, ready for GitHub synchronization and Supabase connectivity.
-          </p>
-        </section>
-
-        {/* System & Integration Status */}
-        <section id="system-status-section" className="space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            System Environment
-          </h2>
-          <ProjectStatus />
-        </section>
-
-        {/* Scalable Architecture Map */}
-        <section id="architecture-map-section" className="space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            Project Structure
-          </h2>
-          <StructureGuide />
-        </section>
-
-        {/* Integration Readiness Checklist */}
-        <section id="integration-readiness-section" className="space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            Next Development Steps
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card
-              id="next-step-github"
-              title="GitHub Connection"
-              description="Push to your GitHub repository to enable CI/CD, version tracking, and team collaboration."
-              badge={<Badge variant="info">Step 1</Badge>}
-            >
-              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-mono bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                <GitBranch className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                <span>Export via Settings &rarr; Export to GitHub</span>
-              </div>
-            </Card>
-
-            <Card
-              id="next-step-supabase"
-              title="Supabase Integration"
-              description="Configure your Supabase project URL and anonymous key in environment variables to enable persistence and authentication."
-              badge={<Badge variant="info">Step 2</Badge>}
-            >
-              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-mono bg-slate-50 dark:bg-slate-800/60 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
-                <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>Add VITE_SUPABASE_URL &amp; VITE_SUPABASE_ANON_KEY</span>
-              </div>
-            </Card>
-          </div>
-        </section>
-      </main>
-
-      <Footer id="main-footer" />
-    </div>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

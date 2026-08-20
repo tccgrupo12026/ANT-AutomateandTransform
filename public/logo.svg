@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%" fill="none">
+  <!-- ANT - Official Logo Vector Representation -->
+  <g id="ant-logo-group">
+    <!-- Green Leaf with bite mark -->
+    <path d="M70 230 C65 210 80 185 95 170 C105 160 115 150 145 130 C175 110 210 115 215 135 C200 155 180 175 160 210 C145 235 110 245 70 230 Z" fill="#00C48C" />
+    <!-- Bite mark cutout on leaf -->
+    <path d="M70 230 C80 220 90 205 85 190 C80 180 92 165 105 165 C95 155 100 145 110 140" fill="none" stroke="#00C48C" stroke-width="2" />
+    <path d="M70 225 C85 220 90 195 82 185 C92 180 98 165 92 155 C102 150 110 140 120 135" fill="#ffffff" />
+    <!-- Leaf veins (purple) -->
+    <path d="M195 135 L90 220" stroke="#7C3AED" stroke-width="8" stroke-linecap="round" />
+    <path d="M165 160 L140 145" stroke="#7C3AED" stroke-width="6" stroke-linecap="round" />
+    <path d="M135 185 L105 215" stroke="#7C3AED" stroke-width="6" stroke-linecap="round" />
+
+    <!-- Antennae -->
+    <path d="M225 170 C220 130 225 110 235 105 C240 102 245 105 242 115 C238 135 235 155 238 175" stroke="#6D28D9" stroke-width="8" stroke-linecap="round" fill="none" />
+    <path d="M250 175 C255 140 265 120 275 115 C280 112 284 116 280 125 C272 145 265 160 262 185" stroke="#6D28D9" stroke-width="8" stroke-linecap="round" fill="none" />
+
+    <!-- Head & Mandibles -->
+    <path d="M245 165 C220 160 175 185 160 215 C150 235 170 245 195 240 C225 235 260 225 265 195 C268 180 260 168 245 165 Z" fill="#6D28D9" />
+    
+    <!-- Thorax / Middle Body -->
+    <path d="M225 225 C225 225 235 285 295 280 C310 278 320 260 305 240 C285 215 255 215 225 225 Z" fill="#6D28D9" />
+    <!-- Thorax Green Spot -->
+    <ellipse cx="270" cy="245" rx="16" ry="10" transform="rotate(-25 270 245)" fill="#00C48C" />
+
+    <!-- Abdomen / Back Body -->
+    <path d="M295 265 C320 240 375 240 415 275 C445 305 440 345 400 350 C345 355 295 310 295 265 Z" fill="#6D28D9" />
+    <!-- Abdomen Green Spot -->
+    <ellipse cx="360" cy="265" rx="18" ry="11" transform="rotate(-35 360 265)" fill="#00C48C" />
+
+    <!-- Legs -->
+    <!-- Front Legs -->
+    <path d="M235 240 C215 265 200 295 205 330 C207 350 200 375 190 395 C187 400 197 403 203 398 C215 375 220 345 220 325 C225 290 245 265 250 250" fill="#6D28D9" />
+    
+    <!-- Middle Legs -->
+    <path d="M270 265 C265 295 268 335 275 370 C278 390 280 405 284 415 C288 417 293 412 291 405 C285 385 282 355 280 325 C280 295 290 280 290 275" fill="#6D28D9" />
+    
+    <!-- Back Legs -->
+    <path d="M320 285 C345 315 365 350 370 385 C372 405 382 418 385 422 C390 422 393 415 388 408 C382 385 375 355 355 320 C345 305 335 290 330 285" fill="#6D28D9" />
+  </g>
+</svg>

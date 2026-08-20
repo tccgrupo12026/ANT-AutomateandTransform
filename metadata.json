@@ -1,6 +1,6 @@
 {
-  "name": "Base Web Application",
-  "description": "A minimal, clean, and scalable web application starter structured for incremental modular development.",
+  "name": "ANT — Automate and Transform",
+  "description": "Plataforma web simples, moderna e acessível para gestão de microempresas.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

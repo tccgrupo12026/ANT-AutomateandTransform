@@ -9,6 +9,12 @@ export default defineConfig(() => {
 
     plugins: [react(), tailwindcss()],
 
+    define: {
+      'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL || ''),
+      'process.env.SUPABASE_PUBLISHABLE_KEY': JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY || ''),
+      'process.env.APP_URL': JSON.stringify(process.env.APP_URL || ''),
+    },
+
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
