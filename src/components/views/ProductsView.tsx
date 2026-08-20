@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
+import { TableSkeleton } from '../common/Skeleton';
 import { AntLogo } from '../common/AntLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { productService } from '../../services/productService';
@@ -402,9 +403,8 @@ export const ProductsView: React.FC = () => {
         subtitle={`Exibindo ${filteredProducts.length} de ${products.length} produtos`}
       >
         {isLoading ? (
-          <div className="py-16 flex flex-col items-center justify-center space-y-3 text-slate-400">
-            <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-            <span className="text-xs font-medium">Carregando catálogo de produtos...</span>
+          <div className="py-4">
+            <TableSkeleton rows={6} columns={7} />
           </div>
         ) : products.length === 0 ? (
           /* Empty state when no products created yet */

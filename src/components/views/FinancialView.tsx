@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
+import { MetricCardSkeleton, CardSkeleton, TableSkeleton } from '../common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
 import { financialService } from '../../services/financialService';
 import { companyService } from '../../services/companyService';
@@ -523,9 +524,18 @@ export const FinancialView: React.FC = () => {
       {/* 2. INDICADORES DO MÊS & COMPARATIVOS (KPIS) */}
       {/* ========================================================================= */}
       {isLoading ? (
-        <div className="py-16 flex flex-col items-center justify-center space-y-3 text-slate-400">
-          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-          <span className="text-xs font-semibold">Carregando indicadores financeiros em tempo real...</span>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </div>
+          <CardSkeleton rows={5} />
         </div>
       ) : (
         <>

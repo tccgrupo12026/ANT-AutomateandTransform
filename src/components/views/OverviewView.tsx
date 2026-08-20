@@ -16,9 +16,14 @@ import {
   ShieldCheck,
   ChevronRight,
   Sparkles,
+  Activity,
+  DollarSign,
+  LineChart,
+  FileText,
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
+import { MetricCardSkeleton, CardSkeleton, Skeleton } from '../common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
 import { productService } from '../../services/productService';
 import { movementService } from '../../services/movementService';
@@ -203,9 +208,27 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
 
       {/* Loading Skeleton or Stats Grid */}
       {isLoading ? (
-        <div className="py-20 flex flex-col items-center justify-center space-y-3 text-slate-400">
-          <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-          <span className="text-xs font-semibold">Carregando indicadores em tempo real...</span>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-5 space-y-6">
+              <CardSkeleton rows={3} />
+              <CardSkeleton rows={2} />
+            </div>
+            <div className="lg:col-span-7 space-y-6">
+              <CardSkeleton rows={5} />
+              <CardSkeleton rows={3} />
+            </div>
+          </div>
         </div>
       ) : (
         <>
@@ -684,6 +707,86 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
                         </div>
                         <div className="text-[10px] text-slate-400">
                           Entradas e saídas de estoque
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('financeiro')}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400">
+                        <DollarSign className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                          Financeiro
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Receitas, despesas e saldo
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('saude_negocio')}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                          Saúde do Negócio
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Diagnóstico real e regras
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('graficos')}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400">
+                        <LineChart className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                          Gráficos
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Evolução visual e faturamento
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+                  </button>
+
+                  <button
+                    onClick={() => onNavigate('relatorios')}
+                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                          Relatórios
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          Exportação em PDF e CSV
                         </div>
                       </div>
                     </div>

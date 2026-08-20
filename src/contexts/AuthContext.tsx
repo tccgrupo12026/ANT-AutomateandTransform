@@ -30,7 +30,9 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<AuthResult>;
   signUp: (email: string, password: string, metadata?: SignUpMetadata) => Promise<AuthResult>;
   signOut: () => Promise<void>;
+  signOutAllDevices: () => Promise<AuthResult>;
   resetPassword: (email: string) => Promise<AuthResult>;
+  changePassword: (newPassword: string) => Promise<AuthResult>;
   updateUserMetadata: (data: { companyName?: string; fullName?: string }) => void;
 }
 
@@ -44,7 +46,9 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => ({ success: false }),
   signUp: async () => ({ success: false }),
   signOut: async () => {},
+  signOutAllDevices: async () => ({ success: false }),
   resetPassword: async () => ({ success: false }),
+  changePassword: async () => ({ success: false }),
   updateUserMetadata: () => {},
 });
 
@@ -201,6 +205,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSession(null);
   };
 
+  const signOutAllDevices = async (): Promise<AuthResult> => {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { error } = await supabase.auth.signOut({ scope: 'global' });
+        if (error) {
+          console.warn('Erro ao encerrar todas as sessões no Supabase:', error.message);
+        }
+      } catch (err: any) {
+        console.warn('Falha durante signOutAllDevices:', err);
+      }
+    }
+    setUser(null);
+    setSession(null);
+    return { success: true };
+  };
+
+  const changePassword = async (newPassword: string): Promise<AuthResult> => {
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return {
+        success: false,
+        error: 'O serviço de autenticação Supabase não está inicializado.',
+      };
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        return { success: false, error: translateAuthError(error) };
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: translateAuthError(err) };
+    }
+  };
+
   const resetPassword = async (email: string): Promise<AuthResult> => {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -256,7 +301,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signIn,
         signUp,
         signOut,
+        signOutAllDevices,
         resetPassword,
+        changePassword,
         updateUserMetadata,
       }}
     >

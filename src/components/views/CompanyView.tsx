@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
+import { CardSkeleton } from '../common/Skeleton';
 import { AntLogo } from '../common/AntLogo';
 import { useAuth } from '../../contexts/AuthContext';
 import { companyService } from '../../services/companyService';
@@ -260,9 +261,8 @@ export const CompanyView: React.FC = () => {
             subtitle="Preencha as informações para registrar ou atualizar sua empresa."
           >
             {isLoading ? (
-              <div className="py-12 flex flex-col items-center justify-center space-y-3 text-slate-400">
-                <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-                <span className="text-xs font-medium">Carregando dados da empresa...</span>
+              <div className="py-2">
+                <CardSkeleton rows={6} />
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">

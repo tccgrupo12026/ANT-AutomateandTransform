@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
+import { TableSkeleton } from '../common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
 import { movementService } from '../../services/movementService';
 import { productService } from '../../services/productService';
@@ -458,9 +459,8 @@ export const MovementsView: React.FC = () => {
         subtitle={`Exibindo ${filteredMovements.length} de ${movements.length} movimentações registradas`}
       >
         {isLoading ? (
-          <div className="py-16 flex flex-col items-center justify-center space-y-3 text-slate-400">
-            <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-            <span className="text-xs font-medium">Carregando histórico de movimentações...</span>
+          <div className="py-4">
+            <TableSkeleton rows={6} columns={6} />
           </div>
         ) : products.length === 0 ? (
           /* Notice when no products are available to move */

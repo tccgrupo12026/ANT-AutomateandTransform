@@ -7,6 +7,8 @@ import {
   Calculator,
   Activity,
   BarChart3,
+  LineChart,
+  FileText,
   Building2,
   Settings,
   X,
@@ -39,7 +41,8 @@ const navItems: NavItem[] = [
   { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
   { id: 'precificacao', label: 'Precificação', icon: Calculator },
   { id: 'saude_negocio', label: 'Saúde do Negócio', icon: Activity, badge: 'Regras', badgeColor: 'green' },
-  { id: 'relatorios', label: 'Relatórios', icon: BarChart3 },
+  { id: 'graficos', label: 'Gráficos', icon: LineChart },
+  { id: 'relatorios', label: 'Relatórios', icon: FileText },
   { id: 'configuracoes', label: 'Configurações', icon: Settings },
 ];
 

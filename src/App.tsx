@@ -21,10 +21,12 @@ import { MovementsView } from './components/views/MovementsView';
 import { FinancialView } from './components/views/FinancialView';
 import { PricingView } from './components/views/PricingView';
 import { BusinessHealthView } from './components/views/BusinessHealthView';
+import { ChartsView } from './components/views/ChartsView';
 import { ReportsView } from './components/views/ReportsView';
 import { CompanyView } from './components/views/CompanyView';
 import { ProfileView } from './components/views/ProfileView';
 import { SettingsView } from './components/views/SettingsView';
+import { NotFoundView } from './components/views/NotFoundView';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
@@ -69,9 +71,11 @@ function AppContent() {
       case 'precificacao':
         return <PricingView />;
       case 'saude_negocio':
-        return <BusinessHealthView />;
+        return <BusinessHealthView onNavigate={setCurrentSection} />;
+      case 'graficos':
+        return <ChartsView onNavigate={setCurrentSection} />;
       case 'relatorios':
-        return <ReportsView />;
+        return <ReportsView onNavigate={setCurrentSection} />;
       case 'empresa':
         return <CompanyView />;
       case 'perfil':
@@ -79,7 +83,7 @@ function AppContent() {
       case 'configuracoes':
         return <SettingsView />;
       default:
-        return <OverviewView onNavigate={setCurrentSection} />;
+        return <NotFoundView onNavigate={setCurrentSection} />;
     }
   };
 

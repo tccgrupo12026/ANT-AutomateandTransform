@@ -18,6 +18,7 @@ export type NavigationSection =
   | 'financeiro'
   | 'precificacao'
   | 'saude_negocio'
+  | 'graficos'
   | 'relatorios'
   | 'empresa'
   | 'configuracoes'
@@ -149,6 +150,55 @@ export interface CompanyProfile {
   contactEmail?: string;
   ownerName?: string;
   mainGoal?: string;
+}
+
+export type CurrencyType = 'BRL' | 'USD' | 'EUR';
+export type DateFormatType = 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'MM/DD/YYYY';
+
+export interface UserSettings {
+  id?: string;
+  user_id: string;
+  // Preferências do Sistema
+  currency: CurrencyType;
+  date_format: DateFormatType;
+  timezone: string;
+  // Preferências Financeiras
+  default_profit_margin: number;
+  default_tax_rate: number;
+  financial_alert_threshold?: number;
+  // Preferências de Estoque
+  default_min_stock: number;
+  low_stock_alert_enabled: boolean;
+  block_zero_stock_sales: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SettingsFormData {
+  // Dados da Empresa
+  company_name: string;
+  responsible_name: string;
+  cnpj: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+
+  // Preferências do Sistema
+  currency: CurrencyType;
+  date_format: DateFormatType;
+  timezone: string;
+
+  // Preferências Financeiras
+  default_profit_margin: number | string;
+  default_tax_rate: number | string;
+  financial_alert_threshold: number | string;
+
+  // Preferências de Estoque
+  default_min_stock: number | string;
+  low_stock_alert_enabled: boolean;
+  block_zero_stock_sales: boolean;
 }
 
 export interface SystemModuleInfo {
