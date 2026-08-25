@@ -2,8 +2,9 @@
  * ANT — Automate and Transform
  * RBAC (Role-Based Access Control) Context & Hook
  *
- * Gerencia o papel do usuário ativo (Proprietário ou Funcionário),
- * controle de acesso a módulos, listas de membros e simulador de perfis.
+ * Gerencia o papel real do usuário ativo (Proprietário ou Funcionário),
+ * controle de acesso aos módulos do sistema e gestão da equipe da empresa.
+ * 100% Determinístico — SEM Inteligência Artificial.
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
@@ -19,11 +20,11 @@ import { NavigationSection } from '../types';
 import {
   fetchCompanyMembers,
   inviteCompanyMember,
+  updateCompanyMember,
   updateMemberRole,
   removeCompanyMember,
   resendMemberInvitation,
-  getStoredSimulatedRole,
-  setStoredSimulatedRole,
+  clearLegacySimulatedRoles,
 } from '../services/rbacService';
 
 interface RbacContextType {
@@ -38,10 +39,10 @@ interface RbacContextType {
   canAccess: (section: NavigationSection) => boolean;
   hasPermission: (permission: keyof RoleDefinition['permissions']) => boolean;
   inviteMember: (name: string, email: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
+  editMember: (memberId: string, data: { name: string; email: string; role: UserRole }) => Promise<{ success: boolean; error?: string }>;
   updateRole: (memberId: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
   removeMember: (memberId: string) => Promise<{ success: boolean; error?: string }>;
   resendInvite: (memberId: string) => Promise<{ success: boolean; message: string }>;
-  switchRole: (role: UserRole) => void;
   refreshMembers: () => Promise<void>;
 }
 
@@ -59,10 +60,10 @@ const RbacContext = createContext<RbacContextType>({
   canAccess: () => true,
   hasPermission: () => true,
   inviteMember: async () => ({ success: false }),
+  editMember: async () => ({ success: false }),
   updateRole: async () => ({ success: false }),
   removeMember: async () => ({ success: false }),
   resendInvite: async () => ({ success: false, message: '' }),
-  switchRole: () => {},
   refreshMembers: async () => {},
 });
 
@@ -74,10 +75,13 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentRole, setCurrentRole] = useState<UserRole>('owner');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Carrega membros e define o papel ativo
+  // Carrega membros e define o papel ativo REAL do usuário autenticado
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Limpeza de segurança para remover qualquer flag antiga de simulação
+      clearLegacySimulatedRoles();
+
       const data = await fetchCompanyMembers(companyId, {
         id: user?.id,
         email: user?.email,
@@ -85,21 +89,23 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setMembers(data);
 
-      // Verifica se há papel simulado persistido
-      const simulated = getStoredSimulatedRole(companyId);
-      if (simulated) {
-        setCurrentRole(simulated);
-      } else {
-        // Encontra o papel do usuário atual
-        const currentMember = data.find((m) => m.email.toLowerCase() === (user?.email || '').toLowerCase());
+      // Encontra o papel real do usuário atual no time
+      if (user?.email) {
+        const currentMember = data.find(
+          (m) => m.email.toLowerCase() === user.email!.toLowerCase()
+        );
         if (currentMember) {
           setCurrentRole(currentMember.role);
         } else {
-          setCurrentRole('owner'); // Default para criador
+          // O criador/usuário da conta é sempre Proprietário
+          setCurrentRole('owner');
         }
+      } else {
+        setCurrentRole('owner');
       }
     } catch (err) {
       console.warn('Erro ao carregar permissões e membros:', err);
+      setCurrentRole('owner');
     } finally {
       setIsLoading(false);
     }
@@ -108,15 +114,6 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  // Função para alternar o papel (simulação / sandbox)
-  const switchRole = useCallback(
-    (role: UserRole) => {
-      setCurrentRole(role);
-      setStoredSimulatedRole(companyId, role);
-    },
-    [companyId]
-  );
 
   const roleDefinition = ANT_ROLES[currentRole] || ANT_ROLES.owner;
 
@@ -142,6 +139,17 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleInviteMember = useCallback(
     async (name: string, email: string, role: UserRole) => {
       const res = await inviteCompanyMember(companyId, { name, email, role });
+      if (res.success) {
+        await loadData();
+      }
+      return res;
+    },
+    [companyId, loadData]
+  );
+
+  const handleEditMember = useCallback(
+    async (memberId: string, data: { name: string; email: string; role: UserRole }) => {
+      const res = await updateCompanyMember(companyId, memberId, data);
       if (res.success) {
         await loadData();
       }
@@ -193,10 +201,10 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
         canAccess,
         hasPermission,
         inviteMember: handleInviteMember,
+        editMember: handleEditMember,
         updateRole: handleUpdateRole,
         removeMember: handleRemoveMember,
         resendInvite: handleResendInvite,
-        switchRole,
         refreshMembers: loadData,
       }}
     >
@@ -206,3 +214,4 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useRbac = () => useContext(RbacContext);
+

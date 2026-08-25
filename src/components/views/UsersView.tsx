@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Users,
   UserPlus,
@@ -11,14 +11,15 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  Sparkles,
   Shield,
-  HelpCircle,
   RefreshCw,
   Send,
-  Eye,
   KeyRound,
   Lock,
+  Lightbulb,
+  Search,
+  UserX,
+  Sparkles,
 } from 'lucide-react';
 import { useRbac } from '../../contexts/RbacContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -31,14 +32,18 @@ export const UsersView: React.FC = () => {
     isLoading,
     isOwner,
     inviteMember,
+    editMember,
     updateRole,
     removeMember,
     resendInvite,
-    switchRole,
     refreshMembers,
   } = useRbac();
 
   const { companyName, user } = useAuth();
+
+  // Filtros e busca
+  const [activeTab, setActiveTab] = useState<'all' | 'owners' | 'employees' | 'pending'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Estado do formulário de convite
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -49,8 +54,10 @@ export const UsersView: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Estado para alteração de papel
+  // Estado para Edição Completa de Colaborador (Nome, Email, Cargo)
   const [editingMember, setEditingMember] = useState<CompanyMember | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editRole, setEditRole] = useState<UserRole>('employee');
 
   // Estado para confirmação de remoção
@@ -62,13 +69,42 @@ export const UsersView: React.FC = () => {
   const employeeCount = members.filter((m) => m.role === 'employee').length;
   const pendingCount = members.filter((m) => m.status === 'pending').length;
 
+  // Filtragem da lista
+  const filteredMembers = useMemo(() => {
+    return members.filter((m) => {
+      // Filtro por Tab
+      if (activeTab === 'owners' && m.role !== 'owner') return false;
+      if (activeTab === 'employees' && m.role !== 'employee') return false;
+      if (activeTab === 'pending' && m.status !== 'pending') return false;
+
+      // Filtro por Busca
+      if (searchTerm.trim()) {
+        const query = searchTerm.toLowerCase().trim();
+        const matchName = m.name?.toLowerCase().includes(query);
+        const matchEmail = m.email?.toLowerCase().includes(query);
+        if (!matchName && !matchEmail) return false;
+      }
+
+      return true;
+    });
+  }, [members, activeTab, searchTerm]);
+
+  const handleOpenInvite = () => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setInviteName('');
+    setInviteEmail('');
+    setInviteRole('employee');
+    setShowInviteModal(true);
+  };
+
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
 
     if (!inviteName.trim()) {
-      setErrorMessage('Por favor, informe o nome completo do usuário.');
+      setErrorMessage('Por favor, informe o nome do colaborador.');
       return;
     }
     if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
@@ -81,9 +117,6 @@ export const UsersView: React.FC = () => {
       const res = await inviteMember(inviteName, inviteEmail, inviteRole);
       if (res.success) {
         setSuccessMessage(`Convite enviado com sucesso para ${inviteEmail}!`);
-        setInviteName('');
-        setInviteEmail('');
-        setInviteRole('employee');
         setShowInviteModal(false);
       } else {
         setErrorMessage(res.error || 'Não foi possível convidar o usuário.');
@@ -95,22 +128,46 @@ export const UsersView: React.FC = () => {
     }
   };
 
-  const handleUpdateMemberRole = async () => {
+  const handleOpenEdit = (member: CompanyMember) => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setEditingMember(member);
+    setEditName(member.name);
+    setEditEmail(member.email);
+    setEditRole(member.role);
+  };
+
+  const handleSaveEditMember = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!editingMember) return;
     setErrorMessage(null);
     setSuccessMessage(null);
-    setIsSubmitting(true);
 
+    if (!editName.trim()) {
+      setErrorMessage('O nome não pode estar vazio.');
+      return;
+    }
+    if (!editEmail.trim() || !editEmail.includes('@')) {
+      setErrorMessage('Informe um e-mail válido.');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      const res = await updateRole(editingMember.id, editRole);
+      const res = await editMember(editingMember.id, {
+        name: editName,
+        email: editEmail,
+        role: editRole,
+      });
+
       if (res.success) {
-        setSuccessMessage(`Papel de ${editingMember.name} alterado para ${ANT_ROLES[editRole].name}.`);
+        setSuccessMessage(`Dados de ${editName} atualizados com sucesso!`);
         setEditingMember(null);
       } else {
-        setErrorMessage(res.error || 'Erro ao alterar papel.');
+        setErrorMessage(res.error || 'Erro ao atualizar dados do colaborador.');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Erro ao atualizar papel.');
+      setErrorMessage(err.message || 'Erro inesperado ao salvar alterações.');
     } finally {
       setIsSubmitting(false);
     }
@@ -149,7 +206,7 @@ export const UsersView: React.FC = () => {
       {/* Header da Página */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
               <Users className="w-6 h-6" />
             </div>
@@ -158,7 +215,7 @@ export const UsersView: React.FC = () => {
                 Usuários da Empresa
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Gerencie a equipe da empresa <span className="font-semibold text-purple-700 dark:text-purple-300">{companyName}</span> e defina permissões de acesso
+                Gerencie a equipe de <span className="font-semibold text-purple-700 dark:text-purple-300">{companyName}</span> e defina permissões de acesso
               </p>
             </div>
           </div>
@@ -175,11 +232,7 @@ export const UsersView: React.FC = () => {
 
           {isOwner && (
             <button
-              onClick={() => {
-                setErrorMessage(null);
-                setSuccessMessage(null);
-                setShowInviteModal(true);
-              }}
+              onClick={handleOpenInvite}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
             >
               <UserPlus className="w-4 h-4" />
@@ -198,7 +251,7 @@ export const UsersView: React.FC = () => {
           </div>
           <button
             onClick={() => setSuccessMessage(null)}
-            className="text-xs font-semibold hover:underline text-emerald-700"
+            className="text-xs font-semibold hover:underline text-emerald-700 cursor-pointer"
           >
             Fechar
           </button>
@@ -213,99 +266,125 @@ export const UsersView: React.FC = () => {
           </div>
           <button
             onClick={() => setErrorMessage(null)}
-            className="text-xs font-semibold hover:underline text-rose-700"
+            className="text-xs font-semibold hover:underline text-rose-700 cursor-pointer"
           >
             Fechar
           </button>
         </div>
       )}
 
-      {/* Sandbox: Simulador de Papéis para Validação */}
-      <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900 to-indigo-900 text-white shadow-md border border-purple-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-white/10 shrink-0 mt-0.5">
-              <Sparkles className="w-5 h-5 text-purple-200" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold tracking-wide uppercase text-purple-200">
-                  Simulador de Papel em Tempo Real
-                </h3>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/30 text-purple-100 border border-purple-400/30">
-                  Validação RBAC
-                </span>
-              </div>
-              <p className="text-xs text-purple-100/90 mt-0.5">
-                Alterne instantaneamente o papel ativo para validar como a interface e as restrições se comportam para cada nível de acesso.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 bg-black/20 p-1.5 rounded-xl border border-white/10">
-            <button
-              onClick={() => switchRole('owner')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                currentRole === 'owner'
-                  ? 'bg-purple-600 text-white shadow-sm'
-                  : 'text-purple-200 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Proprietário</span>
-            </button>
-
-            <button
-              onClick={() => switchRole('employee')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                currentRole === 'employee'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-purple-200 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Briefcase className="w-3.5 h-3.5" />
-              <span>Funcionário</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Cards de Resumo da Equipe */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div
+          onClick={() => setActiveTab('all')}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+            activeTab === 'all'
+              ? 'bg-purple-50/50 dark:bg-purple-950/20 border-purple-300 dark:border-purple-700 shadow-xs'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-purple-200'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total de Membros</span>
             <Users className="w-4 h-4 text-purple-600" />
           </div>
           <p className="text-2xl font-black text-slate-900 dark:text-white mt-2">{totalMembers}</p>
-          <span className="text-[11px] text-slate-500">Membros cadastrados na empresa</span>
+          <span className="text-[11px] text-slate-500">Membros vinculados à empresa</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div
+          onClick={() => setActiveTab('owners')}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+            activeTab === 'owners'
+              ? 'bg-purple-50/50 dark:bg-purple-950/20 border-purple-300 dark:border-purple-700 shadow-xs'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-purple-200'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Proprietários</span>
             <ShieldCheck className="w-4 h-4 text-purple-600" />
           </div>
           <p className="text-2xl font-black text-purple-700 dark:text-purple-400 mt-2">{ownerCount}</p>
-          <span className="text-[11px] text-purple-600/80 dark:text-purple-400/80 font-medium">Acesso total irrestrito</span>
+          <span className="text-[11px] text-purple-600/80 dark:text-purple-400/80 font-medium">Acesso total permanente</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div
+          onClick={() => setActiveTab('employees')}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+            activeTab === 'employees'
+              ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-700 shadow-xs'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-emerald-200'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Funcionários</span>
             <Briefcase className="w-4 h-4 text-emerald-600" />
           </div>
           <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-2">{employeeCount}</p>
-          <span className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">Operacional (Estoque/Produtos)</span>
+          <span className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">
+            {employeeCount === 0 ? 'Nenhum cadastrado' : 'Acesso Operacional'}
+          </span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+        <div
+          onClick={() => setActiveTab('pending')}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+            activeTab === 'pending'
+              ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700 shadow-xs'
+              : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xs hover:border-amber-200'
+          }`}
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Convites Pendentes</span>
             <Clock className="w-4 h-4 text-amber-600" />
           </div>
           <p className="text-2xl font-black text-amber-700 dark:text-amber-400 mt-2">{pendingCount}</p>
-          <span className="text-[11px] text-amber-600/80 dark:text-amber-400/80 font-medium">Aguardando confirmação</span>
+          <span className="text-[11px] text-amber-600/80 dark:text-amber-400/80 font-medium">
+            {pendingCount === 0 ? 'Tudo confirmado' : 'Aguardando aceite'}
+          </span>
+        </div>
+      </div>
+
+      {/* Card Informativo de Boas Práticas (Recomendação ANT) */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/60 shadow-2xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-2.5 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 shrink-0 mt-0.5 shadow-2xs">
+              <Lightbulb className="w-5 h-5" />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-200/60 dark:bg-purple-900/80 text-purple-800 dark:text-purple-200 uppercase tracking-wider">
+                  Boas Práticas de Acesso
+                </span>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Recomendação de Segurança</span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed max-w-3xl">
+                <strong className="font-bold text-purple-900 dark:text-purple-200">Dica ANT:</strong> sempre que possível, utilize e-mails corporativos para seus colaboradores. Isso facilita a gestão de acessos, aumenta a segurança da empresa e simplifica processos em casos de desligamento ou troca de funcionários.
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-[11px] font-bold text-purple-800 dark:text-purple-300">Exemplos:</span>
+                <span className="text-[11px] px-2.5 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-mono shadow-2xs">
+                  estoque@suaempresa.com.br
+                </span>
+                <span className="text-[11px] px-2.5 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-mono shadow-2xs">
+                  financeiro@suaempresa.com.br
+                </span>
+                <span className="text-[11px] px-2.5 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-mono shadow-2xs">
+                  atendimento@suaempresa.com.br
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {isOwner && (
+            <button
+              onClick={handleOpenInvite}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-sm hover:shadow-md transition-all cursor-pointer shrink-0 self-start md:self-center"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Convidar com E-mail</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -329,7 +408,7 @@ export const UsersView: React.FC = () => {
           </div>
 
           <p className="text-xs text-slate-600 dark:text-slate-400">
-            Ideal para donos do negócio e sócios. Acesso total a todas as áreas sensíveis da empresa.
+            Acesso total a todas as áreas do sistema, configurações, relatórios, métricas financeiras e gestão da equipe da empresa.
           </p>
 
           <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
@@ -410,151 +489,280 @@ export const UsersView: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabela de Membros da Empresa */}
+      {/* Tabela de Membros da Empresa com Filtros e Empty States */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white">Membros da Equipe</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Usuários vinculados a esta empresa e seus respectivos níveis de permissão
-            </p>
+        {/* Cabeçalho da Lista + Filtros */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Membros da Equipe</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Usuários vinculados a esta empresa e seus respectivos níveis de permissão
+              </p>
+            </div>
+
+            {/* Campo de Busca */}
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nome ou e-mail..."
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-600 focus:outline-hidden"
+              />
+            </div>
           </div>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 w-fit">
-            {members.length} {members.length === 1 ? 'usuário cadastrado' : 'usuários cadastrados'}
-          </span>
+
+          {/* Abas de Filtro */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'all'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <span>Todos</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'all' ? 'bg-purple-800 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                {totalMembers}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('owners')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'owners'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Proprietários</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'owners' ? 'bg-purple-800 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                {ownerCount}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('employees')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'employees'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Briefcase className="w-3.5 h-3.5" />
+              <span>Funcionários</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'employees' ? 'bg-purple-800 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                {employeeCount}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'pending'
+                  ? 'bg-purple-700 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Convites Pendentes</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${activeTab === 'pending' ? 'bg-purple-800 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                {pendingCount}
+              </span>
+            </button>
+          </div>
         </div>
 
-        {/* Tabela */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs sm:text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-950/60 text-slate-600 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-              <tr>
-                <th className="py-3.5 px-4 sm:px-6">Usuário</th>
-                <th className="py-3.5 px-4">Papel (Role)</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 hidden md:table-cell">Data de Entrada</th>
-                <th className="py-3.5 px-4 sm:px-6 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-              {members.map((member) => {
-                const roleDef = ANT_ROLES[member.role] || ANT_ROLES.owner;
-                const isCurrentUser = member.email.toLowerCase() === (user?.email || '').toLowerCase();
-                const initial = (member.name || member.email || 'U').charAt(0).toUpperCase();
+        {/* Tabela ou Estado Vazio */}
+        {filteredMembers.length === 0 ? (
+          <div className="p-8 sm:p-12 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 flex items-center justify-center mx-auto">
+              {activeTab === 'employees' ? (
+                <Briefcase className="w-7 h-7" />
+              ) : activeTab === 'pending' ? (
+                <Clock className="w-7 h-7" />
+              ) : searchTerm ? (
+                <Search className="w-7 h-7" />
+              ) : (
+                <UserX className="w-7 h-7" />
+              )}
+            </div>
 
-                return (
-                  <tr key={member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    {/* Nome / Email */}
-                    <td className="py-3.5 px-4 sm:px-6">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
+            <div className="space-y-1.5 max-w-md mx-auto">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                {activeTab === 'employees'
+                  ? 'Nenhum funcionário cadastrado ainda'
+                  : activeTab === 'pending'
+                  ? 'Nenhum convite pendente no momento'
+                  : searchTerm
+                  ? 'Nenhum usuário encontrado'
+                  : 'Nenhum membro encontrado'}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {activeTab === 'employees'
+                  ? 'Convide os membros da sua equipe para delegar funções operacionais (como controle de estoque e lançamento de produtos) mantendo a segurança dos dados financeiros da sua empresa.'
+                  : activeTab === 'pending'
+                  ? 'Todos os colaboradores convidados já aceitaram o convite e estão com acesso ativo.'
+                  : searchTerm
+                  ? `Não encontramos nenhum membro com o termo "${searchTerm}". Verifique a digitação ou limpe o filtro.`
+                  : 'Comece adicionando seu primeiro colaborador para trabalhar em equipe.'}
+              </p>
+            </div>
+
+            {isOwner && (
+              <div className="pt-2">
+                {searchTerm ? (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    Limpar Busca
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleOpenInvite}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>Convidar Primeiro Funcionário</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead className="bg-slate-50 dark:bg-slate-950/60 text-slate-600 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <tr>
+                  <th className="py-3.5 px-4 sm:px-6">Usuário</th>
+                  <th className="py-3.5 px-4">Papel (Cargo)</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 hidden md:table-cell">Data de Inclusão</th>
+                  <th className="py-3.5 px-4 sm:px-6 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                {filteredMembers.map((member) => {
+                  const roleDef = ANT_ROLES[member.role] || ANT_ROLES.owner;
+                  const isCurrentUser = member.email.toLowerCase() === (user?.email || '').toLowerCase();
+                  const initial = (member.name || member.email || 'U').charAt(0).toUpperCase();
+
+                  return (
+                    <tr key={member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      {/* Nome / Email */}
+                      <td className="py-3.5 px-4 sm:px-6">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
+                              member.role === 'owner'
+                                ? 'bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-950/80 dark:text-purple-300 dark:border-purple-800'
+                                : 'bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800'
+                            }`}
+                          >
+                            {initial}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                              <span>{member.name}</span>
+                              {isCurrentUser && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                  Você
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                              <Mail className="w-3 h-3 text-slate-400" />
+                              <span>{member.email}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Papel */}
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
                             member.role === 'owner'
-                              ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                              : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                           }`}
                         >
-                          {initial}
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                            <span>{member.name}</span>
-                            {isCurrentUser && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                                Você
-                              </span>
+                          {member.role === 'owner' ? (
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                          ) : (
+                            <Briefcase className="w-3.5 h-3.5" />
+                          )}
+                          <span>{roleDef.name}</span>
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3.5 px-4">
+                        {member.status === 'active' ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Ativo
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                              <Clock className="w-3.5 h-3.5" />
+                              Pendente
+                            </span>
+                            {isOwner && (
+                              <button
+                                onClick={() => handleResend(member)}
+                                className="text-[10px] text-purple-600 hover:underline font-semibold cursor-pointer"
+                                title="Reenviar convite por e-mail"
+                              >
+                                Reenviar
+                              </button>
                             )}
                           </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                            <Mail className="w-3 h-3 text-slate-400" />
-                            <span>{member.email}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Papel */}
-                    <td className="py-3.5 px-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
-                          member.role === 'owner'
-                            ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800'
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
-                        }`}
-                      >
-                        {member.role === 'owner' ? (
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                        ) : (
-                          <Briefcase className="w-3.5 h-3.5" />
                         )}
-                        <span>{roleDef.name}</span>
-                      </span>
-                    </td>
+                      </td>
 
-                    {/* Status */}
-                    <td className="py-3.5 px-4">
-                      {member.status === 'active' ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Ativo
-                        </span>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                            <Clock className="w-3 h-3" />
-                            Pendente
-                          </span>
-                          {isOwner && (
+                      {/* Data */}
+                      <td className="py-3.5 px-4 hidden md:table-cell text-xs text-slate-500">
+                        {new Date(member.invited_at || member.created_at || Date.now()).toLocaleDateString('pt-BR')}
+                      </td>
+
+                      {/* Ações */}
+                      <td className="py-3.5 px-4 sm:px-6 text-right">
+                        {isOwner ? (
+                          <div className="flex items-center justify-end gap-1">
                             <button
-                              onClick={() => handleResend(member)}
-                              className="text-[10px] text-purple-600 hover:underline font-semibold cursor-pointer"
-                              title="Reenviar convite por e-mail"
+                              onClick={() => handleOpenEdit(member)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-purple-600 transition-colors cursor-pointer"
+                              title="Editar dados e papel deste colaborador"
                             >
-                              Reenviar
+                              <Edit2 className="w-4 h-4" />
                             </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
 
-                    {/* Data */}
-                    <td className="py-3.5 px-4 hidden md:table-cell text-xs text-slate-500">
-                      {new Date(member.invited_at || member.created_at || Date.now()).toLocaleDateString('pt-BR')}
-                    </td>
-
-                    {/* Ações */}
-                    <td className="py-3.5 px-4 sm:px-6 text-right">
-                      {isOwner ? (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => {
-                              setEditingMember(member);
-                              setEditRole(member.role);
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-purple-600 transition-colors cursor-pointer"
-                            title="Alterar papel deste usuário"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={() => setDeletingMember(member)}
-                            className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
-                            title="Remover membro da empresa"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">Somente leitura</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                            <button
+                              onClick={() => setDeletingMember(member)}
+                              className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/30 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                              title="Remover membro da empresa"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Somente leitura</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Modal de Convidar Novo Usuário */}
@@ -608,9 +816,39 @@ export const UsersView: React.FC = () => {
                     required
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="maria.estoque@suaempresa.com"
+                    placeholder="exemplo@suaempresa.com.br"
                     className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-600 focus:outline-hidden"
                   />
+                </div>
+
+                {/* Card Informativo de Boas Práticas: E-mail Corporativo */}
+                <div className="mt-2.5 p-3 rounded-xl bg-purple-50/90 dark:bg-purple-950/40 border border-purple-200/80 dark:border-purple-800/70 text-slate-700 dark:text-slate-300 space-y-2">
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 shrink-0 mt-0.5 shadow-2xs">
+                      <Lightbulb className="w-4 h-4" />
+                    </div>
+                    <div className="space-y-1.5 flex-1">
+                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                        <strong className="font-bold text-purple-900 dark:text-purple-200">Dica ANT:</strong> sempre que possível, utilize e-mails corporativos para seus colaboradores. Isso facilita a gestão de acessos, aumenta a segurança da empresa e simplifica processos em casos de desligamento ou troca de funcionários.
+                      </p>
+                      <div className="pt-0.5">
+                        <span className="text-[10px] font-bold text-purple-800 dark:text-purple-300 block mb-1">
+                          Exemplos:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-mono shadow-2xs">
+                            estoque@suaempresa.com.br
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-mono shadow-2xs">
+                            financeiro@suaempresa.com.br
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 font-mono shadow-2xs">
+                            atendimento@suaempresa.com.br
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -683,18 +921,18 @@ export const UsersView: React.FC = () => {
         </div>
       )}
 
-      {/* Modal de Alteração de Papel */}
+      {/* Modal de Edição de Colaborador */}
       {editingMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5 animate-scaleUp">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300">
-                  <KeyRound className="w-5 h-5" />
+                  <Edit2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Alterar Papel de Acesso</h3>
-                  <p className="text-xs text-slate-500">Membro: {editingMember.name}</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Editar Colaborador</h3>
+                  <p className="text-xs text-slate-500">Atualize os dados e o papel de acesso na empresa</p>
                 </div>
               </div>
               <button
@@ -705,69 +943,99 @@ export const UsersView: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-3">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                Selecione o novo papel para este colaborador:
-              </label>
+            <form onSubmit={handleSaveEditMember} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Nome Completo
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-600 focus:outline-hidden"
+                  />
+                </div>
+              </div>
 
-              <div className="space-y-2">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Endereço de E-mail
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="email"
+                    required
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-600 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Papel de Acesso (Cargo)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditRole('employee')}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      editRole === 'employee'
+                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500'
+                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold">Funcionário</span>
+                      <Briefcase className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Operacional
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditRole('owner')}
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                      editRole === 'owner'
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 ring-2 ring-purple-500'
+                        : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold">Proprietário</span>
+                      <ShieldCheck className="w-4 h-4 text-purple-600" />
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Acesso Total
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setEditRole('employee')}
-                  className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                    editRole === 'employee'
-                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 ring-2 ring-emerald-500'
-                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                  }`}
+                  onClick={() => setEditingMember(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 cursor-pointer"
                 >
-                  <div className="flex items-center gap-3">
-                    <Briefcase className="w-5 h-5 text-emerald-600" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">Funcionário</h4>
-                      <p className="text-[11px] text-slate-500">Acesso apenas a produtos, estoque e movimentações</p>
-                    </div>
-                  </div>
-                  {editRole === 'employee' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
+                  Cancelar
                 </button>
-
                 <button
-                  type="button"
-                  onClick={() => setEditRole('owner')}
-                  className={`w-full p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                    editRole === 'owner'
-                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/40 ring-2 ring-purple-500'
-                      : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                  }`}
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <div className="flex items-center gap-3">
-                    <ShieldCheck className="w-5 h-5 text-purple-600" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">Proprietário</h4>
-                      <p className="text-[11px] text-slate-500">Acesso irrestrito a finanças, relatórios e equipe</p>
-                    </div>
-                  </div>
-                  {editRole === 'owner' && <CheckCircle2 className="w-4 h-4 text-purple-600" />}
+                  <span>{isSubmitting ? 'Salvando...' : 'Salvar Alterações'}</span>
                 </button>
               </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setEditingMember(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={handleUpdateMemberRole}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
-              >
-                <span>{isSubmitting ? 'Salvando...' : 'Salvar Alteração'}</span>
-              </button>
-            </div>
+            </form>
           </div>
         </div>
       )}
