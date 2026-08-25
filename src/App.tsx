@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
+import { RbacProvider, useRbac } from './contexts/RbacContext';
 import { AuthView } from './components/auth/AuthView';
 import { LandingPage } from './components/landing/LandingPage';
 import { Sidebar } from './components/layout/Sidebar';
@@ -30,10 +31,13 @@ import { CompanyView } from './components/views/CompanyView';
 import { ProfileView } from './components/views/ProfileView';
 import { SettingsView } from './components/views/SettingsView';
 import { PlansView } from './components/views/PlansView';
+import { UsersView } from './components/views/UsersView';
+import { AccessDeniedView } from './components/views/AccessDeniedView';
 import { NotFoundView } from './components/views/NotFoundView';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
+  const { canAccess } = useRbac();
   const [currentSection, setCurrentSection] = useState<NavigationSection>('inicio');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -88,8 +92,13 @@ function AppContent() {
     );
   }
 
-  // 3. Authenticated State -> Workspace & Dashboard
+  // 3. Authenticated State -> Workspace & Dashboard with RBAC Guard
   const renderActiveView = () => {
+    // RBAC Route Permission Check
+    if (!canAccess(currentSection)) {
+      return <AccessDeniedView onNavigateHome={() => setCurrentSection('inicio')} />;
+    }
+
     switch (currentSection) {
       case 'inicio':
         return <OverviewView onNavigate={setCurrentSection} />;
@@ -111,6 +120,8 @@ function AppContent() {
         return <ReportsView onNavigate={setCurrentSection} />;
       case 'empresa':
         return <CompanyView />;
+      case 'usuarios':
+        return <UsersView />;
       case 'perfil':
         return <CompanyView />;
       case 'planos':
@@ -159,7 +170,9 @@ export default function App() {
   return (
     <AuthProvider>
       <SubscriptionProvider>
-        <AppContent />
+        <RbacProvider>
+          <AppContent />
+        </RbacProvider>
       </SubscriptionProvider>
     </AuthProvider>
   );

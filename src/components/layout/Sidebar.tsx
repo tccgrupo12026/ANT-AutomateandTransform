@@ -10,15 +10,19 @@ import {
   LineChart,
   FileText,
   Building2,
+  Users,
   Settings,
   X,
   LogOut,
   Crown,
+  ShieldCheck,
+  Briefcase,
 } from 'lucide-react';
 import { AntLogo } from '../common/AntLogo';
 import { NavigationSection } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
+import { useRbac } from '../../contexts/RbacContext';
 
 interface SidebarProps {
   currentSection: NavigationSection;
@@ -45,6 +49,7 @@ const staticNavItems: NavItem[] = [
   { id: 'saude_negocio', label: 'Saúde do Negócio', icon: Activity, badge: 'Regras', badgeColor: 'green' },
   { id: 'graficos', label: 'Gráficos', icon: LineChart },
   { id: 'relatorios', label: 'Relatórios', icon: FileText },
+  { id: 'usuarios', label: 'Usuários', icon: Users },
   { id: 'planos', label: 'Planos & Assinatura', icon: Crown },
   { id: 'configuracoes', label: 'Configurações', icon: Settings },
 ];
@@ -57,6 +62,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { companyName, fullName, signOut } = useAuth();
   const { summary } = useSubscription();
+  const { canAccess, currentRole, roleDefinition } = useRbac();
+
+  const filteredNavItems = staticNavItems.filter((item) => canAccess(item.id));
 
   const planBadgeText = summary
     ? summary.isTrial
@@ -107,11 +115,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Navigation Items */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-3 py-1.5">
-            Módulos de Gestão
+          <div className="flex items-center justify-between px-3 py-1.5">
+            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Módulos de Gestão
+            </span>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                currentRole === 'owner'
+                  ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+              }`}
+            >
+              {roleDefinition.name}
+            </span>
           </div>
 
-          {staticNavItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentSection === item.id;
             const badge = item.id === 'planos' ? planBadgeText : item.badge;
@@ -176,8 +195,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
               <span className="truncate max-w-[110px]">{fullName}</span>
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                {summary?.isTrial ? `${summary.daysRemaining}d Trial` : summary?.isActive ? 'Ativo' : 'Trial'}
+              <span className={`font-semibold flex items-center gap-1 ${
+                currentRole === 'owner' ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400'
+              }`}>
+                {currentRole === 'owner' ? <ShieldCheck className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
+                {roleDefinition.name}
               </span>
             </div>
           </div>

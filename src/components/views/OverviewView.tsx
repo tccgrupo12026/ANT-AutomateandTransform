@@ -25,6 +25,7 @@ import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { MetricCardSkeleton, CardSkeleton, Skeleton } from '../common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRbac } from '../../contexts/RbacContext';
 import { productService } from '../../services/productService';
 import { movementService } from '../../services/movementService';
 import { companyService } from '../../services/companyService';
@@ -36,6 +37,7 @@ interface OverviewViewProps {
 
 export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
   const { user, companyName } = useAuth();
+  const { canAccess, isOwner, roleDefinition } = useRbac();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -673,125 +675,137 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
                 subtitle="Navegação ágil para a gestão do dia a dia"
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <button
-                    onClick={() => onNavigate('produtos')}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400">
-                        <Package className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          Catálogo de Produtos
+                  {canAccess('produtos') && (
+                    <button
+                      onClick={() => onNavigate('produtos')}
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400">
+                          <Package className="w-4 h-4" />
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          {metrics.totalProductsCount} itens cadastrados
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                            Catálogo de Produtos
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {metrics.totalProductsCount} itens cadastrados
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => onNavigate('movimentacoes')}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
-                        <ArrowLeftRight className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          Movimentações
+                  {canAccess('movimentacoes') && (
+                    <button
+                      onClick={() => onNavigate('movimentacoes')}
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                          <ArrowLeftRight className="w-4 h-4" />
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          Entradas e saídas de estoque
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                            Movimentações
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Entradas e saídas de estoque
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => onNavigate('financeiro')}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400">
-                        <DollarSign className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          Financeiro
+                  {canAccess('financeiro') && (
+                    <button
+                      onClick={() => onNavigate('financeiro')}
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400">
+                          <DollarSign className="w-4 h-4" />
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          Receitas, despesas e saldo
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                            Financeiro
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Receitas, despesas e saldo
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => onNavigate('saude_negocio')}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
-                        <Activity className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          Saúde do Negócio
+                  {canAccess('saude_negocio') && (
+                    <button
+                      onClick={() => onNavigate('saude_negocio')}
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                          <Activity className="w-4 h-4" />
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          Diagnóstico real e regras
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                            Saúde do Negócio
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Diagnóstico real e regras
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => onNavigate('graficos')}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400">
-                        <LineChart className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          Gráficos
+                  {canAccess('graficos') && (
+                    <button
+                      onClick={() => onNavigate('graficos')}
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400">
+                          <LineChart className="w-4 h-4" />
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          Evolução visual e faturamento
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                            Gráficos
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Evolução visual e faturamento
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => onNavigate('relatorios')}
-                    className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          Relatórios
+                  {canAccess('relatorios') && (
+                    <button
+                      onClick={() => onNavigate('relatorios')}
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                          <FileText className="w-4 h-4" />
                         </div>
-                        <div className="text-[10px] text-slate-400">
-                          Exportação em PDF e CSV
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                            Relatórios
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Exportação em PDF e CSV
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
-                  </button>
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+                    </button>
+                  )}
                 </div>
               </Card>
             </div>

@@ -21,11 +21,13 @@ export type NavigationSection =
   | 'graficos'
   | 'relatorios'
   | 'empresa'
+  | 'usuarios'
   | 'planos'
   | 'configuracoes'
   | 'perfil';
 
 export * from './subscription';
+export * from './rbac';
 
 export interface Company {
   id?: string;

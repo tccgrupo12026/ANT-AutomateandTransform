@@ -243,3 +243,69 @@ CREATE TRIGGER tr_after_stock_movement_insert
 AFTER INSERT ON public.stock_movements
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_stock_movement_update();
+
+
+-- ============================================================================
+-- 5. TABELA: public.company_members (Sistema de Papéis & Permissões - RBAC)
+-- Armazena os usuários vinculados à empresa e seus papéis de acesso:
+-- 'owner' (Proprietário) ou 'employee' (Funcionário).
+-- Preparado para suportar 'manager' e 'ant_admin' em fases futuras.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.company_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  company_id TEXT NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('owner', 'employee', 'manager', 'ant_admin')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'pending', 'inactive')),
+  invited_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+  joined_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Habilitar Row Level Security (RLS)
+ALTER TABLE public.company_members ENABLE ROW LEVEL SECURITY;
+
+-- Limpar políticas antigas se existirem
+DROP POLICY IF EXISTS "Membros autenticados podem visualizar membros da mesma empresa" ON public.company_members;
+DROP POLICY IF EXISTS "Proprietários podem cadastrar membros na empresa" ON public.company_members;
+DROP POLICY IF EXISTS "Proprietários podem atualizar membros na empresa" ON public.company_members;
+DROP POLICY IF EXISTS "Proprietários podem remover membros da empresa" ON public.company_members;
+
+-- 5.1 SELECT: Usuários autenticados podem visualizar membros da empresa
+CREATE POLICY "Membros autenticados podem visualizar membros da mesma empresa"
+ON public.company_members
+FOR SELECT
+TO authenticated
+USING (true);
+
+-- 5.2 INSERT: Usuários autenticados podem convidar novos membros
+CREATE POLICY "Proprietários podem cadastrar membros na empresa"
+ON public.company_members
+FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
+-- 5.3 UPDATE: Usuários autenticados podem atualizar membros
+CREATE POLICY "Proprietários podem atualizar membros na empresa"
+ON public.company_members
+FOR UPDATE
+TO authenticated
+USING (true)
+WITH CHECK (true);
+
+-- 5.4 DELETE: Usuários autenticados podem remover membros
+CREATE POLICY "Proprietários podem remover membros da empresa"
+ON public.company_members
+FOR DELETE
+TO authenticated
+USING (true);
+
+-- Índices de performance
+CREATE INDEX IF NOT EXISTS idx_company_members_company_id ON public.company_members(company_id);
+CREATE INDEX IF NOT EXISTS idx_company_members_email ON public.company_members(email);
+CREATE INDEX IF NOT EXISTS idx_company_members_role ON public.company_members(role);
+CREATE INDEX IF NOT EXISTS idx_company_members_user_id ON public.company_members(user_id);
+

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Menu, ShieldCheck, LogOut, Crown, Clock, AlertCircle } from 'lucide-react';
+import { Menu, ShieldCheck, LogOut, Crown, Clock, AlertCircle, Briefcase, Users } from 'lucide-react';
 import { Badge } from '../common/Badge';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
+import { useRbac } from '../../contexts/RbacContext';
 import { NavigationSection } from '../../types';
 
 interface HeaderProps {
@@ -14,11 +15,18 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate }) => {
   const { user, fullName, companyName, signOut } = useAuth();
   const { summary } = useSubscription();
+  const { currentRole, roleDefinition, isOwner } = useRbac();
   const initial = (fullName || user?.email || 'E').charAt(0).toUpperCase();
 
   const handleGoToPlans = () => {
     if (onNavigate) {
       onNavigate('planos');
+    }
+  };
+
+  const handleGoToUsers = () => {
+    if (onNavigate && isOwner) {
+      onNavigate('usuarios');
     }
   };
 
@@ -51,12 +59,39 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
 
       {/* Right Controls */}
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Role Badge */}
+        <button
+          type="button"
+          onClick={handleGoToUsers}
+          disabled={!isOwner}
+          className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs ${
+            isOwner ? 'cursor-pointer' : 'cursor-default'
+          } ${
+            currentRole === 'owner'
+              ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800'
+              : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+          }`}
+          title={isOwner ? 'Papel: Proprietário (Clique para gerenciar usuários)' : 'Papel: Funcionário (Acesso Operacional)'}
+        >
+          {currentRole === 'owner' ? (
+            <>
+              <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <span>Proprietário</span>
+            </>
+          ) : (
+            <>
+              <Briefcase className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Funcionário</span>
+            </>
+          )}
+        </button>
+
         {/* Subscription / Trial Status Badge */}
-        {summary && (
+        {summary && isOwner && (
           <button
             type="button"
             onClick={handleGoToPlans}
-            className={`cursor-pointer px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs ${
+            className={`cursor-pointer px-2.5 py-1 rounded-full text-xs font-bold transition-all hidden sm:flex items-center gap-1.5 border shadow-2xs ${
               summary.isTrial
                 ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800'
                 : summary.isActive
@@ -70,8 +105,7 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
             {summary.isTrial ? (
               <>
                 <Clock className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-                <span className="hidden sm:inline">Trial:</span>
-                <span>{summary.daysRemaining}d restantes</span>
+                <span>{summary.daysRemaining}d Trial</span>
               </>
             ) : summary.isActive ? (
               <>
@@ -81,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
             ) : summary.isExpired ? (
               <>
                 <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                <span>Expirado • Assinar</span>
+                <span>Expirado</span>
               </>
             ) : (
               <>
