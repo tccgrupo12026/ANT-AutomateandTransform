@@ -21,8 +21,11 @@ export type NavigationSection =
   | 'graficos'
   | 'relatorios'
   | 'empresa'
+  | 'planos'
   | 'configuracoes'
   | 'perfil';
+
+export * from './subscription';
 
 export interface Company {
   id?: string;

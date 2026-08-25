@@ -13,10 +13,12 @@ import {
   Settings,
   X,
   LogOut,
+  Crown,
 } from 'lucide-react';
 import { AntLogo } from '../common/AntLogo';
 import { NavigationSection } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSubscription } from '../../contexts/SubscriptionContext';
 
 interface SidebarProps {
   currentSection: NavigationSection;
@@ -30,10 +32,10 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   badge?: string;
-  badgeColor?: 'green' | 'purple';
+  badgeColor?: 'green' | 'purple' | 'amber' | 'rose';
 }
 
-const navItems: NavItem[] = [
+const staticNavItems: NavItem[] = [
   { id: 'inicio', label: 'Início', icon: LayoutDashboard },
   { id: 'empresa', label: 'Empresa', icon: Building2 },
   { id: 'produtos', label: 'Produtos', icon: Package },
@@ -43,6 +45,7 @@ const navItems: NavItem[] = [
   { id: 'saude_negocio', label: 'Saúde do Negócio', icon: Activity, badge: 'Regras', badgeColor: 'green' },
   { id: 'graficos', label: 'Gráficos', icon: LineChart },
   { id: 'relatorios', label: 'Relatórios', icon: FileText },
+  { id: 'planos', label: 'Planos & Assinatura', icon: Crown },
   { id: 'configuracoes', label: 'Configurações', icon: Settings },
 ];
 
@@ -53,6 +56,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
 }) => {
   const { companyName, fullName, signOut } = useAuth();
+  const { summary } = useSubscription();
+
+  const planBadgeText = summary
+    ? summary.isTrial
+      ? `${summary.daysRemaining}d Trial`
+      : summary.isActive
+      ? 'Ativo'
+      : summary.isExpired
+      ? 'Expirado'
+      : 'Suspenso'
+    : '30d Trial';
+
+  const planBadgeColor: 'green' | 'purple' | 'amber' | 'rose' = summary
+    ? summary.isActive
+      ? 'green'
+      : summary.isTrial
+      ? 'purple'
+      : summary.isExpired
+      ? 'rose'
+      : 'amber'
+    : 'purple';
 
   return (
     <>
@@ -87,9 +111,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Módulos de Gestão
           </div>
 
-          {navItems.map((item) => {
+          {staticNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentSection === item.id;
+            const badge = item.id === 'planos' ? planBadgeText : item.badge;
+            const badgeColor = item.id === 'planos' ? planBadgeColor : item.badgeColor;
 
             return (
               <button
@@ -115,17 +141,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span>{item.label}</span>
                 </div>
 
-                {item.badge && (
+                {badge && (
                   <span
                     className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
                       isActive
                         ? 'bg-white/20 text-white'
-                        : item.badgeColor === 'green'
+                        : badgeColor === 'green'
                         ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                        : badgeColor === 'rose'
+                        ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                        : badgeColor === 'amber'
+                        ? 'bg-amber-50 text-amber-600 border border-amber-200'
                         : 'bg-purple-100 text-purple-700'
                     }`}
                   >
-                    {item.badge}
+                    {badge}
                   </span>
                 )}
               </button>
@@ -137,16 +167,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-3.5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-950/40 space-y-2">
           <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[120px]">
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[110px]">
                 {companyName}
               </span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                Online
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
+                {summary?.plan.name || 'Starter'}
               </span>
             </div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-              {fullName}
+            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+              <span className="truncate max-w-[110px]">{fullName}</span>
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                {summary?.isTrial ? `${summary.daysRemaining}d Trial` : summary?.isActive ? 'Ativo' : 'Trial'}
+              </span>
             </div>
           </div>
 
@@ -155,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               signOut();
               onCloseMobile();
             }}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:border-rose-200 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:border-rose-200 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Sair da Conta</span>

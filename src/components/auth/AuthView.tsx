@@ -20,10 +20,18 @@ import { AntLogo } from '../common/AntLogo';
 
 type AuthMode = 'login' | 'signup' | 'forgot';
 
-export const AuthView: React.FC = () => {
+interface AuthViewProps {
+  initialMode?: AuthMode;
+  onBackToLanding?: () => void;
+}
+
+export const AuthView: React.FC<AuthViewProps> = ({
+  initialMode = 'login',
+  onBackToLanding,
+}) => {
   const { signIn, signUp, resetPassword } = useAuth();
 
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [mode, setMode] = useState<AuthMode>(initialMode);
 
   // Form states
   const [email, setEmail] = useState('');
@@ -192,6 +200,19 @@ export const AuthView: React.FC = () => {
         <div className="lg:col-span-7 p-6 sm:p-10 flex flex-col justify-between">
           <div className="max-w-md w-full mx-auto">
             
+            {/* Back to landing page button */}
+            {onBackToLanding && (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={onBackToLanding}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                >
+                  <span>&larr; Voltar à página inicial</span>
+                </button>
+              </div>
+            )}
+
             {/* Mode Switcher Tabs */}
             {mode !== 'forgot' ? (
               <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mb-6">

@@ -7,11 +7,14 @@
 
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { AuthView } from './components/auth/AuthView';
+import { LandingPage } from './components/landing/LandingPage';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { AntLogo } from './components/common/AntLogo';
+import { SubscriptionBanner } from './components/subscription/SubscriptionBanner';
 import { NavigationSection } from './types';
 
 import { OverviewView } from './components/views/OverviewView';
@@ -26,12 +29,17 @@ import { ReportsView } from './components/views/ReportsView';
 import { CompanyView } from './components/views/CompanyView';
 import { ProfileView } from './components/views/ProfileView';
 import { SettingsView } from './components/views/SettingsView';
+import { PlansView } from './components/views/PlansView';
 import { NotFoundView } from './components/views/NotFoundView';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
   const [currentSection, setCurrentSection] = useState<NavigationSection>('inicio');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Unauthenticated view state: 'landing' or 'auth'
+  const [unauthView, setUnauthView] = useState<'landing' | 'auth'>('landing');
+  const [authInitialMode, setAuthInitialMode] = useState<'login' | 'signup'>('login');
 
   // 1. Loading State Screen
   if (isLoading) {
@@ -50,9 +58,34 @@ function AppContent() {
     );
   }
 
-  // 2. Unauthenticated State (Private Route Guard -> Login/Cadastro)
+  // 2. Unauthenticated State (Public SaaS Landing Page & Auth Flow)
   if (!user) {
-    return <AuthView />;
+    if (unauthView === 'landing') {
+      return (
+        <LandingPage
+          onLoginClick={() => {
+            setAuthInitialMode('login');
+            setUnauthView('auth');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          onSignUpClick={() => {
+            setAuthInitialMode('signup');
+            setUnauthView('auth');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
+      );
+    }
+
+    return (
+      <AuthView
+        initialMode={authInitialMode}
+        onBackToLanding={() => {
+          setUnauthView('landing');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+    );
   }
 
   // 3. Authenticated State -> Workspace & Dashboard
@@ -80,6 +113,8 @@ function AppContent() {
         return <CompanyView />;
       case 'perfil':
         return <CompanyView />;
+      case 'planos':
+        return <PlansView />;
       case 'configuracoes':
         return <SettingsView />;
       default:
@@ -102,9 +137,15 @@ function AppContent() {
         <Header
           id="main-header"
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+          onNavigate={setCurrentSection}
         />
 
         <main id="main-content" className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">
+          {/* Top Trial & Subscription Notification Banner */}
+          {currentSection !== 'planos' && (
+            <SubscriptionBanner onNavigateToPlans={() => setCurrentSection('planos')} />
+          )}
+
           {renderActiveView()}
         </main>
 
@@ -117,7 +158,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <SubscriptionProvider>
+        <AppContent />
+      </SubscriptionProvider>
     </AuthProvider>
   );
 }
