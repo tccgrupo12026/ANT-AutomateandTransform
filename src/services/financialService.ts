@@ -6,7 +6,7 @@
  * LocalStorage utilizado estritamente como cache temporário de leitura/fallback.
  */
 
-import { getSupabaseClient } from '../lib/supabase';
+import { getSupabaseClient, executeWithJwtRecovery } from '../lib/supabase';
 import {
   FinancialTransaction,
   FinancialTransactionFormData,
@@ -27,30 +27,41 @@ export const financialService = {
 
     const supabase = getSupabaseClient();
 
-    // 1. Consulta primária no Supabase com RLS
+    // 1. Consulta primária no Supabase com RLS e recuperação de JWT
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('financial_transactions')
-          .select(`
-            id,
-            user_id,
-            company_id,
-            type,
-            description,
-            amount,
-            transaction_date,
-            category,
-            notes,
-            created_at,
-            updated_at
-          `)
-          .eq('user_id', userId)
-          .order('transaction_date', { ascending: false })
-          .order('created_at', { ascending: false });
+        const { data, error } = await executeWithJwtRecovery(async (client) => {
+          return await client
+            .from('financial_transactions')
+            .select(`
+              id,
+              user_id,
+              company_id,
+              type,
+              description,
+              amount,
+              transaction_date,
+              category,
+              notes,
+              created_at,
+              updated_at
+            `)
+            .eq('user_id', userId)
+            .order('transaction_date', { ascending: false })
+            .order('created_at', { ascending: false });
+        });
 
         if (error) {
-          console.error('Erro ao consultar tabela financial_transactions no Supabase:', error.message);
+          console.warn('Aviso ao consultar tabela financial_transactions no Supabase:', error.message);
+          // Tenta ler do cache local para manter a interface funcional
+          try {
+            const cached = localStorage.getItem(`${CACHE_FINANCIAL_KEY_PREFIX}${userId}`);
+            if (cached) {
+              return { data: JSON.parse(cached) as FinancialTransaction[], error: null };
+            }
+          } catch {
+            // Ignora erro
+          }
           return { data: [], error: error.message };
         }
 
@@ -82,12 +93,11 @@ export const financialService = {
           return { data: transactions, error: null };
         }
       } catch (err: any) {
-        console.error('Falha de conexão ao buscar transações no Supabase:', err?.message || err);
-        return { data: [], error: err?.message || 'Erro de conexão com o banco de dados.' };
+        console.warn('Falha de conexão ao buscar transações no Supabase:', err?.message || err);
       }
     }
 
-    // 2. Cache temporário de leitura caso o cliente não esteja disponível
+    // 2. Cache temporário de leitura caso o cliente não esteja disponível ou ocorra falha
     try {
       const cached = localStorage.getItem(`${CACHE_FINANCIAL_KEY_PREFIX}${userId}`);
       if (cached) {

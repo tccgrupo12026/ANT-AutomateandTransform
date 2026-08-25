@@ -6,7 +6,7 @@
  * LocalStorage utilizado estritamente como cache temporário de leitura.
  */
 
-import { getSupabaseClient } from '../lib/supabase';
+import { getSupabaseClient, executeWithJwtRecovery } from '../lib/supabase';
 import { StockMovement, MovementFormData, Product } from '../types';
 
 const CACHE_MOVEMENTS_KEY_PREFIX = 'ant_movements_cache_';
@@ -23,34 +23,45 @@ export const movementService = {
 
     const supabase = getSupabaseClient();
 
-    // 1. Consulta primária no Supabase com Join em Produtos
+    // 1. Consulta primária no Supabase com Join em Produtos e recuperação de JWT
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('stock_movements')
-          .select(`
-            id,
-            user_id,
-            company_id,
-            product_id,
-            type,
-            quantity,
-            movement_date,
-            notes,
-            created_at,
-            product:products (
-              name,
-              category,
-              current_stock,
-              sale_price,
-              cost_price
-            )
-          `)
-          .eq('user_id', userId)
-          .order('movement_date', { ascending: false });
+        const { data, error } = await executeWithJwtRecovery(async (client) => {
+          return await client
+            .from('stock_movements')
+            .select(`
+              id,
+              user_id,
+              company_id,
+              product_id,
+              type,
+              quantity,
+              movement_date,
+              notes,
+              created_at,
+              product:products (
+                name,
+                category,
+                current_stock,
+                sale_price,
+                cost_price
+              )
+            `)
+            .eq('user_id', userId)
+            .order('movement_date', { ascending: false });
+        });
 
         if (error) {
-          console.error('Erro ao consultar tabela stock_movements no Supabase:', error.message);
+          console.warn('Aviso ao consultar tabela stock_movements no Supabase:', error.message);
+          // Tenta ler do cache local para manter a interface funcional
+          try {
+            const cached = localStorage.getItem(`${CACHE_MOVEMENTS_KEY_PREFIX}${userId}`);
+            if (cached) {
+              return { data: JSON.parse(cached) as StockMovement[], error: null };
+            }
+          } catch {
+            // Ignora erro
+          }
           return { data: [], error: error.message };
         }
 
@@ -82,12 +93,11 @@ export const movementService = {
           return { data: movements, error: null };
         }
       } catch (err: any) {
-        console.error('Falha de conexão ao buscar movimentações no Supabase:', err?.message || err);
-        return { data: [], error: err?.message || 'Erro de conexão com o banco de dados.' };
+        console.warn('Falha de conexão ao buscar movimentações no Supabase:', err?.message || err);
       }
     }
 
-    // 2. Cache temporário de leitura caso o cliente não esteja disponível
+    // 2. Cache temporário de leitura caso o cliente não esteja disponível ou ocorra falha
     try {
       const cached = localStorage.getItem(`${CACHE_MOVEMENTS_KEY_PREFIX}${userId}`);
       if (cached) {

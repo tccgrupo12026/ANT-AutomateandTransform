@@ -6,7 +6,7 @@
  * LocalStorage é utilizado estritamente como cache de leitura temporário.
  */
 
-import { getSupabaseClient } from '../lib/supabase';
+import { getSupabaseClient, executeWithJwtRecovery } from '../lib/supabase';
 import { Company, CompanyFormData } from '../types';
 
 const CACHE_KEY_PREFIX = 'ant_company_cache_';
@@ -22,17 +22,28 @@ export const companyService = {
 
     const supabase = getSupabaseClient();
 
-    // 1. Consulta primária no Supabase
+    // 1. Consulta primária no Supabase com recuperação de JWT
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
+        const { data, error } = await executeWithJwtRecovery(async (client) => {
+          return await client
+            .from('companies')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+        });
 
         if (error) {
-          console.error('Erro ao consultar tabela companies no Supabase:', error.message);
+          console.warn('Aviso ao consultar tabela companies no Supabase:', error.message);
+          // Tenta ler do cache local para manter a interface funcional
+          try {
+            const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${userId}`);
+            if (cached) {
+              return { data: JSON.parse(cached) as Company, error: null };
+            }
+          } catch {
+            // Ignora erro
+          }
           return { data: null, error: error.message };
         }
 
@@ -49,12 +60,11 @@ export const companyService = {
         // Se não houver empresa cadastrada para o usuário
         return { data: null, error: null };
       } catch (err: any) {
-        console.error('Falha de conexão com Supabase:', err?.message || err);
-        return { data: null, error: err?.message || 'Erro de conexão com o banco de dados.' };
+        console.warn('Falha de conexão com Supabase:', err?.message || err);
       }
     }
 
-    // 2. Cache temporário caso o cliente Supabase não esteja disponível
+    // 2. Cache temporário caso o cliente Supabase não esteja disponível ou ocorra falha
     try {
       const cached = localStorage.getItem(`${CACHE_KEY_PREFIX}${userId}`);
       if (cached) {

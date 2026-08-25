@@ -8,7 +8,7 @@
  * 100% Determinístico — SEM Inteligência Artificial (IA), Gemini, OpenAI ou Chatbot.
  */
 
-import { getSupabaseClient } from '../lib/supabase';
+import { getSupabaseClient, executeWithJwtRecovery } from '../lib/supabase';
 import { UserSettings, CurrencyType, DateFormatType } from '../types';
 
 const SETTINGS_CACHE_PREFIX = 'ant_user_settings_';
@@ -70,14 +70,16 @@ export const settingsService = {
     const defaultSettings = DEFAULT_USER_SETTINGS(userId);
     const supabase = getSupabaseClient();
 
-    // 1. Tentar ler do Supabase
+    // 1. Tentar ler do Supabase com recuperação de JWT
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('user_settings')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle();
+        const { data, error } = await executeWithJwtRecovery(async (client) => {
+          return await client
+            .from('user_settings')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+        });
 
         if (error) {
           // Se a tabela ainda não foi criada no Supabase pelo usuário, loga aviso e usa cache local

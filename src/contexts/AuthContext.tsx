@@ -8,7 +8,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
-import { getSupabaseClient, isSupabaseConnected } from '../lib/supabase';
+import { getSupabaseClient, isSupabaseConnected, isJwtError } from '../lib/supabase';
 
 export interface SignUpMetadata {
   companyName?: string;
@@ -72,9 +72,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Get initial session
       supabase.auth
         .getSession()
-        .then(({ data: { session: currentSession }, error }) => {
+        .then(async ({ data: { session: currentSession }, error }) => {
           if (error) {
             console.warn('Erro ao obter sessão inicial:', error.message);
+            if (isJwtError(error)) {
+              try {
+                const { data: refreshed, error: refErr } = await supabase.auth.refreshSession();
+                if (!refErr && refreshed?.session) {
+                  setSession(refreshed.session);
+                  setUser(refreshed.session.user ?? null);
+                  setIsLoading(false);
+                  return;
+                }
+              } catch {
+                // Ignora
+              }
+            }
           }
           setSession(currentSession);
           setUser(currentSession?.user ?? null);

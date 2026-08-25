@@ -6,7 +6,7 @@
  * LocalStorage é utilizado estritamente como cache de leitura temporário.
  */
 
-import { getSupabaseClient } from '../lib/supabase';
+import { getSupabaseClient, executeWithJwtRecovery } from '../lib/supabase';
 import { Product, ProductFormData } from '../types';
 
 const CACHE_PRODUCTS_KEY_PREFIX = 'ant_products_cache_';
@@ -22,17 +22,28 @@ export const productService = {
 
     const supabase = getSupabaseClient();
 
-    // 1. Consulta primária no Supabase
+    // 1. Consulta primária no Supabase com recuperação de JWT
     if (supabase) {
       try {
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
+        const { data, error } = await executeWithJwtRecovery(async (client) => {
+          return await client
+            .from('products')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+        });
 
         if (error) {
-          console.error('Erro ao consultar tabela products no Supabase:', error.message);
+          console.warn('Aviso ao consultar tabela products no Supabase:', error.message);
+          // Tenta ler do cache local para manter a interface funcional
+          try {
+            const cached = localStorage.getItem(`${CACHE_PRODUCTS_KEY_PREFIX}${userId}`);
+            if (cached) {
+              return { data: JSON.parse(cached) as Product[], error: null };
+            }
+          } catch {
+            // Ignora erro
+          }
           return { data: [], error: error.message };
         }
 
@@ -49,12 +60,11 @@ export const productService = {
           return { data: data as Product[], error: null };
         }
       } catch (err: any) {
-        console.error('Falha de conexão ao buscar produtos no Supabase:', err?.message || err);
-        return { data: [], error: err?.message || 'Erro de conexão com o banco de dados.' };
+        console.warn('Falha de conexão ao buscar produtos no Supabase:', err?.message || err);
       }
     }
 
-    // 2. Cache temporário caso cliente Supabase não esteja disponível
+    // 2. Cache temporário caso cliente Supabase não esteja disponível ou ocorra falha
     try {
       const cached = localStorage.getItem(`${CACHE_PRODUCTS_KEY_PREFIX}${userId}`);
       if (cached) {
