@@ -11,6 +11,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useAuth } from './AuthContext';
 import {
   UserRole,
+  MemberStatus,
   CompanyMember,
   RoleDefinition,
   ANT_ROLES,
@@ -39,7 +40,10 @@ interface RbacContextType {
   canAccess: (section: NavigationSection) => boolean;
   hasPermission: (permission: keyof RoleDefinition['permissions']) => boolean;
   inviteMember: (name: string, email: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
-  editMember: (memberId: string, data: { name: string; email: string; role: UserRole }) => Promise<{ success: boolean; error?: string }>;
+  editMember: (
+    memberId: string,
+    data: { name: string; email: string; role: UserRole; status?: MemberStatus }
+  ) => Promise<{ success: boolean; error?: string }>;
   updateRole: (memberId: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
   removeMember: (memberId: string) => Promise<{ success: boolean; error?: string }>;
   resendInvite: (memberId: string) => Promise<{ success: boolean; message: string }>;
@@ -148,7 +152,10 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const handleEditMember = useCallback(
-    async (memberId: string, data: { name: string; email: string; role: UserRole }) => {
+    async (
+      memberId: string,
+      data: { name: string; email: string; role: UserRole; status?: MemberStatus }
+    ) => {
       const res = await updateCompanyMember(companyId, memberId, data);
       if (res.success) {
         await loadData();

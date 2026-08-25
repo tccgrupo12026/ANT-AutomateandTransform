@@ -225,12 +225,12 @@ export async function inviteCompanyMember(
 }
 
 /**
- * Edita informações completas de um colaborador (Nome, E-mail, Papel).
+ * Edita informações completas de um colaborador (Nome, E-mail, Papel, Status).
  */
 export async function updateCompanyMember(
   companyId: string,
   memberId: string,
-  data: { name: string; email: string; role: UserRole }
+  data: { name: string; email: string; role: UserRole; status?: MemberStatus }
 ): Promise<{ success: boolean; error?: string }> {
   const current = loadMembersFromCache(companyId) || [];
   const target = current.find((m) => m.id === memberId);
@@ -241,6 +241,7 @@ export async function updateCompanyMember(
 
   const emailClean = data.email.trim().toLowerCase();
   const nameClean = data.name.trim();
+  const nextStatus = data.status || target.status;
 
   // Se alterou o email, verifica se outro membro já usa
   if (emailClean !== target.email.toLowerCase()) {
@@ -253,14 +254,14 @@ export async function updateCompanyMember(
   }
 
   // Validação de segurança: Não permitir que a empresa fique sem nenhum proprietário
-  if (target.role === 'owner' && data.role !== 'owner') {
+  if (target.role === 'owner' && (data.role !== 'owner' || nextStatus === 'inactive')) {
     const activeOwners = current.filter(
       (m) => m.role === 'owner' && m.id !== memberId && m.status === 'active'
     );
     if (activeOwners.length === 0) {
       return {
         success: false,
-        error: 'A empresa precisa de pelo menos 1 Proprietário ativo. Promova outro membro antes de alterar este papel.',
+        error: 'A empresa precisa de pelo menos 1 Proprietário ativo. Promova ou mantenha outro proprietário ativo antes desta alteração.',
       };
     }
   }
@@ -277,6 +278,7 @@ export async function updateCompanyMember(
             name: nameClean,
             email: emailClean,
             role: data.role,
+            status: nextStatus,
             updated_at: now,
           })
           .eq('id', memberId);
@@ -285,7 +287,7 @@ export async function updateCompanyMember(
       if (!error) {
         const updated = current.map((m) =>
           m.id === memberId
-            ? { ...m, name: nameClean, email: emailClean, role: data.role, updated_at: now }
+            ? { ...m, name: nameClean, email: emailClean, role: data.role, status: nextStatus, updated_at: now }
             : m
         );
         saveMembersToCache(companyId, updated);
@@ -299,7 +301,7 @@ export async function updateCompanyMember(
   // Fallback Local
   const updated = current.map((m) =>
     m.id === memberId
-      ? { ...m, name: nameClean, email: emailClean, role: data.role, updated_at: now }
+      ? { ...m, name: nameClean, email: emailClean, role: data.role, status: nextStatus, updated_at: now }
       : m
   );
   saveMembersToCache(companyId, updated);
@@ -395,6 +397,9 @@ export async function resendMemberInvitation(
     m.id === memberId ? { ...m, invited_at: now, updated_at: now } : m
   );
   saveMembersToCache(companyId, updated);
-  return { success: true, message: `Convite reenviado com sucesso para ${target.email}` };
+  return {
+    success: true,
+    message: `Convite de ${target.name} (${target.email}) renovado no sistema. (Nota: Envio automático de e-mail ainda não configurado).`,
+  };
 }
 

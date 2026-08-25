@@ -20,10 +20,11 @@ import {
   Search,
   UserX,
   Sparkles,
+  Info,
 } from 'lucide-react';
 import { useRbac } from '../../contexts/RbacContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { UserRole, CompanyMember, ANT_ROLES } from '../../types/rbac';
+import { UserRole, MemberStatus, CompanyMember, ANT_ROLES } from '../../types/rbac';
 
 export const UsersView: React.FC = () => {
   const {
@@ -54,11 +55,12 @@ export const UsersView: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Estado para Edição Completa de Colaborador (Nome, Email, Cargo)
+  // Estado para Edição Completa de Colaborador (Nome, Email, Cargo, Status)
   const [editingMember, setEditingMember] = useState<CompanyMember | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editRole, setEditRole] = useState<UserRole>('employee');
+  const [editStatus, setEditStatus] = useState<MemberStatus>('active');
 
   // Estado para confirmação de remoção
   const [deletingMember, setDeletingMember] = useState<CompanyMember | null>(null);
@@ -116,13 +118,15 @@ export const UsersView: React.FC = () => {
     try {
       const res = await inviteMember(inviteName, inviteEmail, inviteRole);
       if (res.success) {
-        setSuccessMessage(`Convite enviado com sucesso para ${inviteEmail}!`);
+        setSuccessMessage(
+          `Colaborador ${inviteName} cadastrado na equipe com sucesso! (Nota: O envio automático de e-mails ainda não está configurado. Compartilhe o acesso diretamente com o colaborador).`
+        );
         setShowInviteModal(false);
       } else {
         setErrorMessage(res.error || 'Não foi possível convidar o usuário.');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Erro inesperado ao enviar convite.');
+      setErrorMessage(err.message || 'Erro inesperado ao cadastrar convite.');
     } finally {
       setIsSubmitting(false);
     }
@@ -135,6 +139,7 @@ export const UsersView: React.FC = () => {
     setEditName(member.name);
     setEditEmail(member.email);
     setEditRole(member.role);
+    setEditStatus(member.status);
   };
 
   const handleSaveEditMember = async (e: React.FormEvent) => {
@@ -158,6 +163,7 @@ export const UsersView: React.FC = () => {
         name: editName,
         email: editEmail,
         role: editRole,
+        status: editStatus,
       });
 
       if (res.success) {
@@ -895,8 +901,11 @@ export const UsersView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400">
-                O colaborador convidado receberá acesso com base no papel selecionado e terá seus acessos vinculados exclusivamente à sua empresa.
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2">
+                <Info className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                <p>
+                  O colaborador receberá acesso com base no papel selecionado. <strong>Aviso:</strong> O envio automático de e-mails ainda não está configurado. O cadastro é efetivado no sistema para uso imediato.
+                </p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
@@ -912,8 +921,8 @@ export const UsersView: React.FC = () => {
                   disabled={isSubmitting}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{isSubmitting ? 'Enviando...' : 'Enviar Convite'}</span>
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>{isSubmitting ? 'Cadastrando...' : 'Cadastrar Colaborador'}</span>
                 </button>
               </div>
             </form>
@@ -932,7 +941,7 @@ export const UsersView: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Editar Colaborador</h3>
-                  <p className="text-xs text-slate-500">Atualize os dados e o papel de acesso na empresa</p>
+                  <p className="text-xs text-slate-500">Atualize os dados, o papel e o status de acesso</p>
                 </div>
               </div>
               <button
@@ -1015,6 +1024,59 @@ export const UsersView: React.FC = () => {
                     <p className="text-[11px] text-slate-500 dark:text-slate-400">
                       Acesso Total
                     </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status de Acesso */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Status da Conta
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus('active')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      editStatus === 'active'
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200 ring-2 ring-emerald-500 font-bold'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-1.5 text-xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span>Ativo</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus('pending')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      editStatus === 'pending'
+                        ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200 ring-2 ring-amber-500 font-bold'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-1.5 text-xs">
+                      <Clock className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Pendente</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditStatus('inactive')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      editStatus === 'inactive'
+                        ? 'border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200 ring-2 ring-rose-500 font-bold'
+                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-1.5 text-xs">
+                      <span className="w-2 h-2 rounded-full bg-rose-500" />
+                      <span>Inativo</span>
+                    </div>
                   </button>
                 </div>
               </div>
