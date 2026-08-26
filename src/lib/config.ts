@@ -4,6 +4,12 @@
  * Safely accesses system secrets SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.
  */
 
+/**
+ * ANT — Automate and Transform
+ * Application Configuration Loader
+ * Safely accesses system secrets SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, RESEND_API_KEY and RESEND_FROM_EMAIL.
+ */
+
 const sanitizeValue = (val: unknown): string => {
   if (typeof val !== 'string') return '';
   const trimmed = val.trim();
@@ -21,39 +27,20 @@ const sanitizeValue = (val: unknown): string => {
   return trimmed;
 };
 
-const getEnvVar = (primaryKey: string, fallbackKeys: string[] = []): string => {
-  // Check process.env first (defined at build time by Vite)
-  if (typeof process !== 'undefined' && process.env && process.env[primaryKey]) {
-    const sanitized = sanitizeValue(process.env[primaryKey]);
-    if (sanitized) return sanitized;
+export const getSupabaseUrl = (): string => {
+  // Static read for Vite AST replacement
+  let raw = '';
+  try {
+    raw = sanitizeValue(process.env.SUPABASE_URL) || sanitizeValue(process.env.VITE_SUPABASE_URL);
+  } catch {}
+  if (!raw) {
+    try {
+      raw = sanitizeValue(import.meta.env.SUPABASE_URL) || sanitizeValue(import.meta.env.VITE_SUPABASE_URL);
+    } catch {}
   }
-  for (const fallback of fallbackKeys) {
-    if (typeof process !== 'undefined' && process.env && process.env[fallback]) {
-      const sanitized = sanitizeValue(process.env[fallback]);
-      if (sanitized) return sanitized;
-    }
-  }
-  // Check import.meta.env
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    if (import.meta.env[primaryKey]) {
-      const sanitized = sanitizeValue(import.meta.env[primaryKey]);
-      if (sanitized) return sanitized;
-    }
-    for (const fallback of fallbackKeys) {
-      if (import.meta.env[fallback]) {
-        const sanitized = sanitizeValue(import.meta.env[fallback]);
-        if (sanitized) return sanitized;
-      }
-    }
-  }
-  return '';
-};
+  if (!raw) return '';
 
-const normalizeSupabaseUrl = (rawUrl: string): string => {
-  const sanitized = sanitizeValue(rawUrl);
-  if (!sanitized) return '';
-
-  let urlCandidate = sanitized;
+  let urlCandidate = raw;
   if (!urlCandidate.startsWith('http://') && !urlCandidate.startsWith('https://')) {
     urlCandidate = `https://${urlCandidate}`;
   }
@@ -69,31 +56,95 @@ const normalizeSupabaseUrl = (rawUrl: string): string => {
   return '';
 };
 
-const rawSupabaseUrl = getEnvVar('SUPABASE_URL', ['VITE_SUPABASE_URL']);
-const validatedSupabaseUrl = normalizeSupabaseUrl(rawSupabaseUrl);
+export const getSupabasePublishableKey = (): string => {
+  try {
+    const p1 = sanitizeValue(process.env.SUPABASE_PUBLISHABLE_KEY);
+    if (p1) return p1;
+    const p2 = sanitizeValue(process.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+    if (p2) return p2;
+  } catch {}
 
-const supabasePublishableKey = getEnvVar('SUPABASE_PUBLISHABLE_KEY', [
-  'SUPABASE_ANON_KEY',
-  'VITE_SUPABASE_PUBLISHABLE_KEY',
-  'VITE_SUPABASE_ANON_KEY',
-]);
+  try {
+    const m1 = sanitizeValue(import.meta.env.SUPABASE_PUBLISHABLE_KEY);
+    if (m1) return m1;
+    const m2 = sanitizeValue(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+    if (m2) return m2;
+  } catch {}
 
-const rawResendApiKey = getEnvVar('RESEND_API_KEY', ['VITE_RESEND_API_KEY']);
-const rawResendFromEmail = getEnvVar('RESEND_FROM_EMAIL', ['VITE_RESEND_FROM_EMAIL']) || 'ANT Gestão <convites@resend.dev>';
+  return '';
+};
+
+export const getResendApiKey = (): string => {
+  try {
+    const p1 = sanitizeValue(process.env.RESEND_API_KEY);
+    if (p1) return p1;
+    const p2 = sanitizeValue(process.env.VITE_RESEND_API_KEY);
+    if (p2) return p2;
+  } catch {}
+
+  try {
+    const m1 = sanitizeValue(import.meta.env.RESEND_API_KEY);
+    if (m1) return m1;
+    const m2 = sanitizeValue(import.meta.env.VITE_RESEND_API_KEY);
+    if (m2) return m2;
+  } catch {}
+
+  return '';
+};
+
+export const getResendFromEmail = (): string => {
+  try {
+    const p1 = sanitizeValue(process.env.RESEND_FROM_EMAIL);
+    if (p1) return p1;
+    const p2 = sanitizeValue(process.env.VITE_RESEND_FROM_EMAIL);
+    if (p2) return p2;
+  } catch {}
+
+  try {
+    const m1 = sanitizeValue(import.meta.env.RESEND_FROM_EMAIL);
+    if (m1) return m1;
+    const m2 = sanitizeValue(import.meta.env.VITE_RESEND_FROM_EMAIL);
+    if (m2) return m2;
+  } catch {}
+
+  return 'ANT Gestão <convites@resend.dev>';
+};
+
+export const getAppUrl = (): string => {
+  try {
+    const p = sanitizeValue(process.env.APP_URL) || sanitizeValue(process.env.VITE_APP_URL);
+    if (p) return p;
+  } catch {}
+  try {
+    const m = sanitizeValue(import.meta.env.APP_URL) || sanitizeValue(import.meta.env.VITE_APP_URL);
+    if (m) return m;
+  } catch {}
+  return '';
+};
 
 export const config = {
   appName: 'ANT — Automate and Transform',
   appDescription: 'Plataforma web simples, moderna e acessível para gestão de microempresas',
-  appUrl: getEnvVar('APP_URL', ['VITE_APP_URL']),
-  supabase: {
-    url: validatedSupabaseUrl,
-    publishableKey: supabasePublishableKey,
-    isConfigured: Boolean(validatedSupabaseUrl && supabasePublishableKey),
+  get appUrl() {
+    return getAppUrl();
   },
-  email: {
-    resendApiKey: rawResendApiKey,
-    fromEmail: rawResendFromEmail,
-    isConfigured: Boolean(rawResendApiKey && rawResendApiKey.length > 5),
+  get supabase() {
+    const url = getSupabaseUrl();
+    const key = getSupabasePublishableKey();
+    return {
+      url,
+      publishableKey: key,
+      isConfigured: Boolean(url && key),
+    };
+  },
+  get email() {
+    const apiKey = getResendApiKey();
+    const fromEmail = getResendFromEmail() || 'ANT Gestão <convites@resend.dev>';
+    return {
+      resendApiKey: apiKey,
+      fromEmail: fromEmail,
+      isConfigured: Boolean(apiKey && apiKey.length > 5),
+    };
   },
   isProduction: typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD),
 };

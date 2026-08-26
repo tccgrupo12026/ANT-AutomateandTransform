@@ -1058,7 +1058,7 @@ export const UsersView: React.FC = () => {
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="font-bold block text-sm mb-0.5">E-mail Real Enviado com Sucesso!</strong>
-                  O convite oficial foi disparado para <strong>{inviteResult.memberEmail}</strong>.
+                  O convite oficial foi disparado para <strong>{inviteResult.memberEmail}</strong> via Resend.
                 </div>
               </div>
             ) : (
@@ -1066,7 +1066,11 @@ export const UsersView: React.FC = () => {
                 <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="font-bold block text-sm mb-0.5">Aviso de Envio de E-mail</strong>
-                  O serviço de e-mail (Resend) não está configurado. Envie o link seguro abaixo diretamente para o colaborador.
+                  {inviteResult.emailError ? (
+                    <span>{inviteResult.emailError} Envie o link seguro abaixo diretamente para o colaborador.</span>
+                  ) : (
+                    <span>O serviço de e-mail (Resend) não está configurado. Envie o link seguro abaixo diretamente para o colaborador.</span>
+                  )}
                 </div>
               </div>
             )}
