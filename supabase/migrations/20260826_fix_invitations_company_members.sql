@@ -1,11 +1,12 @@
 -- ============================================================================
--- ANT (Automate and Transform) — Migração RBAC & Convites: company_members
+-- ANT (Automate and Transform) — Migração: Ajuste e Correção de Convites
 -- ============================================================================
--- Cria e ajusta a tabela de membros da empresa com suporte a papéis (RBAC),
--- convites com tokens únicos, expiração de 7 dias e aceite seguro anônimo.
+-- Esta migração assegura que a tabela `company_members` contenha todos os campos
+-- necessários para o ciclo de vida dos convites e as políticas RLS anônimas
+-- para que colaboradores possam abrir e aceitar o link sem erros.
 -- ============================================================================
 
--- 1. Criar a tabela se ainda não existir
+-- 1. Garante a tabela
 CREATE TABLE IF NOT EXISTS public.company_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id TEXT NOT NULL,
@@ -24,13 +25,13 @@ CREATE TABLE IF NOT EXISTS public.company_members (
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. Garantir colunas caso a tabela já tenha sido criada anteriormente com versão reduzida
+-- 2. Adiciona colunas se estiverem ausentes em instâncias existentes
 ALTER TABLE public.company_members ADD COLUMN IF NOT EXISTS company_name TEXT;
 ALTER TABLE public.company_members ADD COLUMN IF NOT EXISTS invite_token TEXT;
 ALTER TABLE public.company_members ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 ALTER TABLE public.company_members ADD COLUMN IF NOT EXISTS invited_by UUID REFERENCES auth.users(id) ON DELETE SET NULL;
 
--- Garantir constraint de unicidade no invite_token
+-- 3. Garante constraint de unicidade no invite_token
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -42,46 +43,43 @@ EXCEPTION
   WHEN others THEN NULL;
 END $$;
 
--- Atualizar constraint de status para permitir 'expired'
+-- 4. Atualiza constraint de status para permitir 'expired'
 ALTER TABLE public.company_members DROP CONSTRAINT IF EXISTS company_members_status_check;
 ALTER TABLE public.company_members ADD CONSTRAINT company_members_status_check CHECK (status IN ('active', 'pending', 'expired', 'inactive'));
 
--- 3. Habilitar Row Level Security (RLS)
+-- 5. Habilitar Row Level Security (RLS)
 ALTER TABLE public.company_members ENABLE ROW LEVEL SECURITY;
 
--- 4. Limpar políticas antigas
+-- 6. Recriar políticas de segurança com suporte a anon para busca e aceite de convites
 DROP POLICY IF EXISTS "Membros autenticados podem visualizar membros da mesma empresa" ON public.company_members;
 DROP POLICY IF EXISTS "Proprietários podem cadastrar membros na empresa" ON public.company_members;
 DROP POLICY IF EXISTS "Proprietários podem atualizar membros na empresa" ON public.company_members;
 DROP POLICY IF EXISTS "Proprietários podem remover membros da empresa" ON public.company_members;
 DROP POLICY IF EXISTS "Convites podem ser consultados por token anônimo" ON public.company_members;
 DROP POLICY IF EXISTS "Convites podem ser atualizados no aceite" ON public.company_members;
-DROP POLICY IF EXISTS "Convites podem ser aceitos por usuários autenticados" ON public.company_members;
 
--- 5. Políticas de Acesso (RLS)
-
--- 5.1 SELECT (Autenticado): Usuários autenticados podem ler membros da empresa
+-- 6.1 SELECT Autenticado (membros logados vêem os membros da empresa)
 CREATE POLICY "Membros autenticados podem visualizar membros da mesma empresa"
 ON public.company_members
 FOR SELECT
 TO authenticated
 USING (true);
 
--- 5.2 SELECT (Anônimo): Permite ao convidado não-autenticado validar o link de convite pelo token
+-- 6.2 SELECT Anônimo (convidado não-logado busca detalhes do convite pelo token na URL)
 CREATE POLICY "Convites podem ser consultados por token anônimo"
 ON public.company_members
 FOR SELECT
 TO anon
 USING (invite_token IS NOT NULL);
 
--- 5.3 INSERT (Autenticado): Proprietários autenticados podem criar convites/membros
+-- 6.3 INSERT Autenticado (proprietários criam novos convites)
 CREATE POLICY "Proprietários podem cadastrar membros na empresa"
 ON public.company_members
 FOR INSERT
 TO authenticated
 WITH CHECK (true);
 
--- 5.4 UPDATE (Autenticado): Proprietários autenticados podem editar membros
+-- 6.4 UPDATE Autenticado (proprietários editam ou inativam colaboradores)
 CREATE POLICY "Proprietários podem atualizar membros na empresa"
 ON public.company_members
 FOR UPDATE
@@ -89,7 +87,7 @@ TO authenticated
 USING (true)
 WITH CHECK (true);
 
--- 5.5 UPDATE (Anônimo/Público): Permite atualizar o status para 'active' e vincular o user_id no aceite do convite
+-- 6.5 UPDATE Anônimo (convidado aceita o convite e vincula seu user_id)
 CREATE POLICY "Convites podem ser atualizados no aceite"
 ON public.company_members
 FOR UPDATE
@@ -97,14 +95,14 @@ TO anon
 USING (invite_token IS NOT NULL)
 WITH CHECK (invite_token IS NOT NULL);
 
--- 5.6 DELETE (Autenticado): Proprietários autenticados podem remover membros
+-- 6.6 DELETE Autenticado (proprietários removem membros da empresa)
 CREATE POLICY "Proprietários podem remover membros da empresa"
 ON public.company_members
 FOR DELETE
 TO authenticated
 USING (true);
 
--- 6. Índices de performance
+-- 7. Índices de alta performance
 CREATE INDEX IF NOT EXISTS idx_company_members_company_id ON public.company_members(company_id);
 CREATE INDEX IF NOT EXISTS idx_company_members_email ON public.company_members(email);
 CREATE INDEX IF NOT EXISTS idx_company_members_role ON public.company_members(role);

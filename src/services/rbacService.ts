@@ -17,6 +17,34 @@ const MEMBERS_CACHE_PREFIX = 'ant_company_members_';
 const SIMULATED_ROLE_PREFIX = 'ant_simulated_role_';
 const INVITATIONS_CACHE_KEY = 'ant_company_invitations_global';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * Valida se uma string possui o formato padrão de UUID v4.
+ */
+export function isValidUuid(str: string | null | undefined): boolean {
+  if (!str) return false;
+  return UUID_REGEX.test(str.trim());
+}
+
+/**
+ * Gera um UUID v4 válido compatível com PostgreSQL UUID.
+ */
+export function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // Fallback
+    }
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 /**
  * Gera um token de convite seguro e criptograficamente aleatório.
  */
@@ -317,8 +345,11 @@ export async function inviteCompanyMember(
   const inviteToken = generateInviteToken();
   const inviteLink = buildInviteLink(inviteToken);
 
+  const memberId = generateUUID();
+  const validInviterId = isValidUuid(data.inviterUserId) ? data.inviterUserId : null;
+
   const newMember: CompanyMember = {
-    id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `member_${Date.now()}`,
+    id: memberId,
     company_id: companyId,
     company_name: companyNameClean,
     user_id: null,
@@ -330,7 +361,7 @@ export async function inviteCompanyMember(
     expires_at: expiresAtIso,
     invited_at: nowIso,
     joined_at: null,
-    invited_by: data.inviterUserId || null,
+    invited_by: validInviterId,
     created_at: nowIso,
     updated_at: nowIso,
   };
@@ -485,9 +516,11 @@ export async function acceptInvitation(
   }
 
   const nowIso = new Date().toISOString();
+  const validUserId = isValidUuid(userId) ? userId : null;
+
   const updatedMember: CompanyMember = {
     ...invitation,
-    user_id: userId,
+    user_id: validUserId || invitation.user_id || userId,
     status: 'active',
     joined_at: nowIso,
     updated_at: nowIso,
@@ -499,7 +532,7 @@ export async function acceptInvitation(
       const { error } = await supabase
         .from('company_members')
         .update({
-          user_id: userId,
+          user_id: validUserId,
           status: 'active',
           joined_at: nowIso,
           updated_at: nowIso,
