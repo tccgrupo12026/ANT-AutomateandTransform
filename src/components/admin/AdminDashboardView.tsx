@@ -399,41 +399,35 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onNaviga
               </span>
             </div>
 
-            <div className="h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex">
-              <div
-                className="bg-slate-400 h-full transition-all"
-                style={{
-                  width: `${
-                    metrics?.estimatedMRR
-                      ? ((metrics.revenueByPlan.starter / metrics.estimatedMRR) * 100).toFixed(1)
-                      : 33
-                  }%`,
-                }}
-                title={`Starter: ${formatCurrency(metrics?.revenueByPlan.starter || 0)}`}
-              />
-              <div
-                className="bg-purple-600 h-full transition-all"
-                style={{
-                  width: `${
-                    metrics?.estimatedMRR
-                      ? ((metrics.revenueByPlan.business / metrics.estimatedMRR) * 100).toFixed(1)
-                      : 33
-                  }%`,
-                }}
-                title={`Business: ${formatCurrency(metrics?.revenueByPlan.business || 0)}`}
-              />
-              <div
-                className="bg-amber-500 h-full transition-all"
-                style={{
-                  width: `${
-                    metrics?.estimatedMRR
-                      ? ((metrics.revenueByPlan.enterprise / metrics.estimatedMRR) * 100).toFixed(1)
-                      : 34
-                  }%`,
-                }}
-                title={`Enterprise: ${formatCurrency(metrics?.revenueByPlan.enterprise || 0)}`}
-              />
-            </div>
+            {metrics?.estimatedMRR && metrics.estimatedMRR > 0 ? (
+              <div className="h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex">
+                <div
+                  className="bg-slate-400 h-full transition-all"
+                  style={{
+                    width: `${((metrics.revenueByPlan.starter / metrics.estimatedMRR) * 100).toFixed(1)}%`,
+                  }}
+                  title={`Starter: ${formatCurrency(metrics.revenueByPlan.starter)}`}
+                />
+                <div
+                  className="bg-purple-600 h-full transition-all"
+                  style={{
+                    width: `${((metrics.revenueByPlan.business / metrics.estimatedMRR) * 100).toFixed(1)}%`,
+                  }}
+                  title={`Business: ${formatCurrency(metrics.revenueByPlan.business)}`}
+                />
+                <div
+                  className="bg-amber-500 h-full transition-all"
+                  style={{
+                    width: `${((metrics.revenueByPlan.enterprise / metrics.estimatedMRR) * 100).toFixed(1)}%`,
+                  }}
+                  title={`Enterprise: ${formatCurrency(metrics.revenueByPlan.enterprise)}`}
+                />
+              </div>
+            ) : (
+              <div className="h-3 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+                <span className="text-[10px] font-medium text-slate-400">Nenhuma assinatura paga ativa no momento</span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
               <div className="flex items-center gap-1.5">

@@ -26,49 +26,32 @@ interface SupportTicket {
   priority: 'low' | 'medium' | 'high';
 }
 
-const SAMPLE_TICKETS: SupportTicket[] = [
-  {
-    id: 'TCK-101',
-    company_name: 'Padaria & Confeitaria Bela Vista',
-    responsible_name: 'Carlos Alberto Souza',
-    category: 'assinatura',
-    subject: 'Solicitação de upgrade para Plano Enterprise com desconto anual',
-    status: 'in_progress',
-    created_at: '2026-08-25T14:20:00Z',
-    priority: 'high',
-  },
-  {
-    id: 'TCK-102',
-    company_name: 'Mercadinho do Bairro',
-    responsible_name: 'Ana Lúcia Ribeiro',
-    category: 'acesso',
-    subject: 'Dúvida sobre reenvio de convite expirado para novo estoquista',
-    status: 'open',
-    created_at: '2026-08-26T08:15:00Z',
-    priority: 'medium',
-  },
-  {
-    id: 'TCK-103',
-    company_name: 'Auto Elétrica São Jorge',
-    responsible_name: 'Jorge Menezes',
-    category: 'duvida_geral',
-    subject: 'Como funciona o cálculo de ponto de equilíbrio no ANT?',
-    status: 'resolved',
-    created_at: '2026-08-22T11:00:00Z',
-    priority: 'low',
-  },
-];
+const SUPPORT_TICKETS_STORAGE_KEY = 'ant_admin_support_tickets';
 
 export const AdminSupportView: React.FC = () => {
-  const [tickets, setTickets] = useState<SupportTicket[]>(SAMPLE_TICKETS);
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(SAMPLE_TICKETS[0]);
+  const [tickets, setTickets] = useState<SupportTicket[]>(() => {
+    try {
+      const raw = localStorage.getItem(SUPPORT_TICKETS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed: SupportTicket[] = JSON.parse(raw);
+      // Filtra chamados de exemplo antigos
+      return parsed.filter((t) => !['TCK-101', 'TCK-102', 'TCK-103'].includes(t.id));
+    } catch {
+      return [];
+    }
+  });
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [replyText, setReplyText] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const handleResolveTicket = (id: string) => {
-    setTickets((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: 'resolved' } : t))
-    );
+    const updated = tickets.map((t) => (t.id === id ? { ...t, status: 'resolved' as const } : t));
+    setTickets(updated);
+    try {
+      localStorage.setItem(SUPPORT_TICKETS_STORAGE_KEY, JSON.stringify(updated));
+    } catch {
+      // Ignora
+    }
     if (selectedTicket?.id === id) {
       setSelectedTicket((prev) => (prev ? { ...prev, status: 'resolved' } : null));
     }
@@ -125,49 +108,61 @@ export const AdminSupportView: React.FC = () => {
             </span>
           </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {tickets.map((t) => {
-              const isSelected = selectedTicket?.id === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setSelectedTicket(t)}
-                  className={`w-full text-left p-4 transition-colors cursor-pointer flex flex-col gap-1.5 ${
-                    isSelected
-                      ? 'bg-purple-50/70 dark:bg-purple-950/40 border-l-4 border-purple-600'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-400">{t.id}</span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        t.status === 'open'
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+          {tickets.length === 0 ? (
+            <div className="p-8 text-center space-y-2">
+              <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div className="text-xs font-bold text-slate-700 dark:text-slate-300">Nenhum chamado aberto</div>
+              <p className="text-[11px] text-slate-400">
+                Quando clientes enviarem dúvidas ou solicitações, elas aparecerão aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+              {tickets.map((t) => {
+                const isSelected = selectedTicket?.id === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setSelectedTicket(t)}
+                    className={`w-full text-left p-4 transition-colors cursor-pointer flex flex-col gap-1.5 ${
+                      isSelected
+                        ? 'bg-purple-50/70 dark:bg-purple-950/40 border-l-4 border-purple-600'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-400">{t.id}</span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          t.status === 'open'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : t.status === 'in_progress'
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        }`}
+                      >
+                        {t.status === 'open'
+                          ? 'Aberto'
                           : t.status === 'in_progress'
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}
-                    >
-                      {t.status === 'open'
-                        ? 'Aberto'
-                        : t.status === 'in_progress'
-                        ? 'Em Andamento'
-                        : 'Resolvido'}
-                    </span>
-                  </div>
+                          ? 'Em Andamento'
+                          : 'Resolvido'}
+                      </span>
+                    </div>
 
-                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-1">
-                    {t.subject}
-                  </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-1">
+                      {t.subject}
+                    </div>
 
-                  <div className="text-[11px] text-slate-500 line-clamp-1">
-                    {t.company_name} • {t.responsible_name}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                    <div className="text-[11px] text-slate-500 line-clamp-1">
+                      {t.company_name} • {t.responsible_name}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Ticket Details & Reply Panel */}
@@ -245,8 +240,18 @@ export const AdminSupportView: React.FC = () => {
               </form>
             </>
           ) : (
-            <div className="py-12 text-center text-slate-400 text-xs">
-              Selecione um chamado na lista ao lado para visualizar os detalhes.
+            <div className="py-16 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 mx-auto flex items-center justify-center">
+                <LifeBuoy className="w-6 h-6" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                {tickets.length === 0 ? 'Fila de Atendimento Zerada' : 'Nenhum chamado selecionado'}
+              </h4>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {tickets.length === 0
+                  ? 'Não há solicitações de suporte pendentes no momento. As interações de suporte dos clientes cadastrados no Supabase serão gerenciadas nesta tela.'
+                  : 'Selecione um chamado na lista ao lado para responder e gerenciar a solicitação do cliente.'}
+              </p>
             </div>
           )}
         </div>

@@ -73,6 +73,7 @@ export interface RoleDefinition {
   color: 'purple' | 'emerald' | 'blue' | 'slate';
   permissions: {
     canViewDashboard: boolean;
+    canAccessQuickSale: boolean;
     canViewFinancialMetrics: boolean;
     canManageProducts: boolean;
     canViewProducts: boolean;
@@ -101,6 +102,7 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
     color: 'purple',
     permissions: {
       canViewDashboard: true,
+      canAccessQuickSale: true,
       canViewFinancialMetrics: true,
       canManageProducts: true,
       canViewProducts: true,
@@ -122,23 +124,24 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
     id: 'employee',
     name: 'Funcionário',
     badge: 'Operacional',
-    description: 'Acesso às rotinas diárias: consulta e cadastro de produtos, controle de estoque e registro de entradas/saídas.',
+    description: 'Acesso operacional: Venda Rápida (PDV/Código de Barras), cadastro e consulta de produtos, estoque e movimentações.',
     isAvailable: true,
     color: 'emerald',
     permissions: {
       canViewDashboard: true,
+      canAccessQuickSale: true,
       canViewFinancialMetrics: false,
       canManageProducts: true,
       canViewProducts: true,
       canManageMovements: true,
       canViewStock: true,
-      canAccessPricing: true,
+      canAccessPricing: false,
       canAccessFinancial: false,
       canAccessBusinessHealth: false,
       canAccessReports: false,
       canAccessCharts: false,
       canManageCompany: false,
-      canManageSettings: false,
+      canManageSettings: true,
       canManageSubscription: false,
       canManageUsers: false,
       canAccessAdminPlatform: false,
@@ -153,6 +156,7 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
     color: 'blue',
     permissions: {
       canViewDashboard: true,
+      canAccessQuickSale: true,
       canViewFinancialMetrics: true,
       canManageProducts: true,
       canViewProducts: true,
@@ -179,6 +183,7 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
     color: 'slate',
     permissions: {
       canViewDashboard: false,
+      canAccessQuickSale: false,
       canViewFinancialMetrics: false,
       canManageProducts: false,
       canViewProducts: false,
@@ -228,6 +233,8 @@ export function checkSectionPermission(role: UserRole, section: NavigationSectio
   switch (section) {
     case 'inicio':
       return roleDef.permissions.canViewDashboard;
+    case 'venda_rapida':
+      return roleDef.permissions.canAccessQuickSale;
     case 'produtos':
       return roleDef.permissions.canViewProducts;
     case 'estoque':

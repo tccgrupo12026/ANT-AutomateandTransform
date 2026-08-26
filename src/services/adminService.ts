@@ -18,130 +18,48 @@ import { UserRole } from '../types/rbac';
 const ADMIN_COMPANIES_CACHE_KEY = 'ant_admin_companies_registry';
 const ADMIN_STATUS_OVERRIDE_KEY = 'ant_admin_status_overrides';
 
-// Seed base determinístico para quando não houver clientes remotos no Supabase
-const DEFAULT_PLATFORM_COMPANIES: AdminCompanyItem[] = [
-  {
-    id: 'comp-001',
-    company_name: 'Padaria & Confeitaria Bela Vista',
-    responsible_name: 'Carlos Alberto Souza',
-    email: 'carlos@belavista.com.br',
-    phone: '(11) 98765-4321',
-    created_at: '2026-01-15T10:00:00Z',
-    plan_id: 'business',
-    plan_name: 'Business',
-    subscription_status: 'active',
-    users_count: 4,
-    current_period_end: '2026-09-15T23:59:59Z',
-  },
-  {
-    id: 'comp-002',
-    company_name: 'Auto Elétrica São Jorge',
-    responsible_name: 'Jorge Menezes',
-    email: 'contato@saojorgeauto.com.br',
-    phone: '(11) 97654-3210',
-    created_at: '2026-02-10T14:30:00Z',
-    plan_id: 'starter',
-    plan_name: 'Starter',
-    subscription_status: 'active',
-    users_count: 2,
-    current_period_end: '2026-09-10T23:59:59Z',
-  },
-  {
-    id: 'comp-003',
-    company_name: 'Mercadinho do Bairro',
-    responsible_name: 'Ana Lúcia Ribeiro',
-    email: 'analucia@mercadinhodobairro.com.br',
-    phone: '(19) 99123-4567',
-    created_at: '2026-08-01T09:15:00Z',
-    plan_id: 'starter',
-    plan_name: 'Starter',
-    subscription_status: 'trial',
-    users_count: 2,
-    trial_end_date: '2026-08-31T23:59:59Z',
-    days_remaining: 5,
-  },
-  {
-    id: 'comp-004',
-    company_name: 'Distribuidora Aliança Norte',
-    responsible_name: 'Roberto Viana',
-    email: 'roberto@aliancanorte.com.br',
-    phone: '(21) 98877-6655',
-    created_at: '2026-03-20T11:00:00Z',
-    plan_id: 'enterprise',
-    plan_name: 'Enterprise',
-    subscription_status: 'active',
-    users_count: 10,
-    current_period_end: '2026-09-20T23:59:59Z',
-  },
-  {
-    id: 'comp-005',
-    company_name: 'Boutique Flor de Lis',
-    responsible_name: 'Mariana Duarte',
-    email: 'mariana@flordelisboutique.com.br',
-    phone: '(31) 99881-2233',
-    created_at: '2026-07-28T16:20:00Z',
-    plan_id: 'starter',
-    plan_name: 'Starter',
-    subscription_status: 'trial',
-    users_count: 1,
-    trial_end_date: '2026-08-27T23:59:59Z',
-    days_remaining: 1,
-  },
-  {
-    id: 'comp-006',
-    company_name: 'Restaurante Sabor & Arte',
-    responsible_name: 'Fernando Guimarães',
-    email: 'fernando@saborearte.com.br',
-    phone: '(41) 99112-3344',
-    created_at: '2026-06-12T13:45:00Z',
-    plan_id: 'business',
-    plan_name: 'Business',
-    subscription_status: 'expired',
-    users_count: 3,
-    current_period_end: '2026-07-12T23:59:59Z',
-  },
-  {
-    id: 'comp-007',
-    company_name: 'Mecânica Express Diesel',
-    responsible_name: 'Cláudio Martins',
-    email: 'claudio@expressdiesel.com.br',
-    phone: '(51) 98765-1122',
-    created_at: '2026-05-04T08:30:00Z',
-    plan_id: 'starter',
-    plan_name: 'Starter',
-    subscription_status: 'suspended',
-    users_count: 2,
-    current_period_end: '2026-06-04T23:59:59Z',
-  },
-  {
-    id: 'comp-008',
-    company_name: 'Papelaria & Presentes Criativa',
-    responsible_name: 'Juliana Pires',
-    email: 'juliana@criativapresentes.com.br',
-    phone: '(81) 99654-7788',
-    created_at: '2026-08-14T10:10:00Z',
-    plan_id: 'starter',
-    plan_name: 'Starter',
-    subscription_status: 'trial',
-    users_count: 2,
-    trial_end_date: '2026-09-13T23:59:59Z',
-    days_remaining: 18,
-  },
-];
+// Lista de IDs fictícios de desenvolvimento que devem ser purgados de qualquer cache local legado
+const FORBIDDEN_MOCK_COMPANY_IDS = new Set([
+  'comp-001',
+  'comp-002',
+  'comp-003',
+  'comp-004',
+  'comp-005',
+  'comp-006',
+  'comp-007',
+  'comp-008',
+]);
 
 /**
- * Carrega sobreposições de status salvas pelo administrador
+ * Carrega sobreposições de status salvas pelo administrador para empresas reais
  */
 function getStatusOverrides(): Record<string, { status: SubscriptionStatus; plan_id?: PlanId }> {
   try {
     const raw = localStorage.getItem(ADMIN_STATUS_OVERRIDE_KEY);
-    return raw ? JSON.parse(raw) : {};
+    if (!raw) return {};
+    const parsed: Record<string, { status: SubscriptionStatus; plan_id?: PlanId }> = JSON.parse(raw);
+
+    // Remove qualquer chave legada que corresponda a empresas fictícias
+    let hasCleaned = false;
+    Object.keys(parsed).forEach((k) => {
+      if (FORBIDDEN_MOCK_COMPANY_IDS.has(k) || k.startsWith('comp-00')) {
+        delete parsed[k];
+        hasCleaned = true;
+      }
+    });
+
+    if (hasCleaned) {
+      localStorage.setItem(ADMIN_STATUS_OVERRIDE_KEY, JSON.stringify(parsed));
+    }
+
+    return parsed;
   } catch {
     return {};
   }
 }
 
 function saveStatusOverride(companyId: string, status: SubscriptionStatus, planId?: PlanId): void {
+  if (FORBIDDEN_MOCK_COMPANY_IDS.has(companyId)) return;
   try {
     const current = getStatusOverrides();
     current[companyId] = { status, ...(planId ? { plan_id: planId } : {}) };
@@ -153,7 +71,7 @@ function saveStatusOverride(companyId: string, status: SubscriptionStatus, planI
 
 /**
  * Consulta todas as empresas registradas na plataforma para o Admin ANT.
- * Exibe EXCLUSIVAMENTE dados de cadastro, plano, status e contagem de usuários.
+ * Exibe EXCLUSIVAMENTE dados de cadastro, plano, status e contagem de usuários reais do Supabase.
  */
 export async function fetchAllAdminCompanies(): Promise<AdminCompanyItem[]> {
   const overrides = getStatusOverrides();
@@ -161,18 +79,21 @@ export async function fetchAllAdminCompanies(): Promise<AdminCompanyItem[]> {
 
   if (supabase) {
     try {
-      // 1. Consulta metadados de empresas no Supabase
+      // 1. Consulta metadados de empresas reais no Supabase
       const { data: companiesData, error: compErr } = await executeWithJwtRecovery(async (client) => {
-        return await client.from('companies').select('id, user_id, company_name, responsible_name, email, phone, created_at');
+        return await client
+          .from('companies')
+          .select('id, user_id, company_name, responsible_name, email, phone, created_at')
+          .order('created_at', { ascending: false });
       });
 
-      if (!compErr && companiesData && companiesData.length > 0) {
+      if (!compErr && companiesData) {
         // 2. Consulta contagem de membros por empresa
         const { data: membersData } = await executeWithJwtRecovery(async (client) => {
           return await client.from('company_members').select('company_id, user_id');
         });
 
-        // 3. Consulta assinaturas por usuário
+        // 3. Consulta assinaturas reais
         const { data: subsData } = await executeWithJwtRecovery(async (client) => {
           return await client.from('subscriptions').select('*');
         });
@@ -192,11 +113,14 @@ export async function fetchAllAdminCompanies(): Promise<AdminCompanyItem[]> {
             if (s.user_id) {
               subsMap[s.user_id] = s;
             }
+            if (s.company_id) {
+              subsMap[s.company_id] = s;
+            }
           });
         }
 
-        const remoteCompanies: AdminCompanyItem[] = companiesData.map((c) => {
-          const sub = subsMap[c.user_id] || {};
+        const realCompanies: AdminCompanyItem[] = companiesData.map((c) => {
+          const sub = subsMap[c.user_id] || subsMap[c.id] || {};
           const planId: PlanId = overrides[c.id]?.plan_id || (sub.plan_id as PlanId) || 'starter';
           const status: SubscriptionStatus = overrides[c.id]?.status || (sub.status as SubscriptionStatus) || 'trial';
           const planDef = ANT_PLANS[planId] || ANT_PLANS.starter;
@@ -218,32 +142,15 @@ export async function fetchAllAdminCompanies(): Promise<AdminCompanyItem[]> {
           };
         });
 
-        // Se encontrou dados no banco, mescla com os defaults para garantir visão SaaS robusta
-        const mergedIds = new Set(remoteCompanies.map((r) => r.id));
-        const combined = [
-          ...remoteCompanies,
-          ...DEFAULT_PLATFORM_COMPANIES.filter((d) => !mergedIds.has(d.id)).map((d) => ({
-            ...d,
-            subscription_status: overrides[d.id]?.status || d.subscription_status,
-            plan_id: overrides[d.id]?.plan_id || d.plan_id,
-            plan_name: ANT_PLANS[overrides[d.id]?.plan_id || d.plan_id]?.name || d.plan_name,
-          })),
-        ];
-
-        return combined;
+        return realCompanies;
       }
     } catch (err) {
-      console.warn('Consulta administrativa remota falhou, usando registro consolidado:', err);
+      console.warn('Consulta administrativa de empresas no Supabase falhou:', err);
     }
   }
 
-  // Fallback para registro SaaS consolidado com overrides
-  return DEFAULT_PLATFORM_COMPANIES.map((d) => ({
-    ...d,
-    subscription_status: overrides[d.id]?.status || d.subscription_status,
-    plan_id: overrides[d.id]?.plan_id || d.plan_id,
-    plan_name: ANT_PLANS[overrides[d.id]?.plan_id || d.plan_id]?.name || d.plan_name,
-  }));
+  // Retorna estritamente vazio se não houver empresas reais cadastradas
+  return [];
 }
 
 /**

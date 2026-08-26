@@ -31,6 +31,7 @@ import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { AntLogo } from '../common/AntLogo';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRbac } from '../../contexts/RbacContext';
 import { companyService } from '../../services/companyService';
 import {
   settingsService,
@@ -73,12 +74,16 @@ const BRAZILIAN_STATES = [
 type SettingsTab = 'todas' | 'empresa' | 'sistema' | 'financeiro' | 'estoque' | 'seguranca';
 
 export const SettingsView: React.FC = () => {
-  const { user, companyName, fullName, updateUserMetadata, changePassword, signOutAllDevices } =
+  const { user, companyName, fullName, updateUserMetadata, changePassword, signOut, signOutAllDevices } =
     useAuth();
+  const { currentRole } = useRbac();
+  const isEmployee = currentRole === 'employee';
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('todas');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [employeeName, setEmployeeName] = useState<string>(fullName || '');
+  const [isSavingEmployeeName, setIsSavingEmployeeName] = useState<boolean>(false);
 
   // Form State
   const [formData, setFormData] = useState<SettingsFormData>({
@@ -370,6 +375,24 @@ export const SettingsView: React.FC = () => {
     }
   };
 
+  const handleSaveEmployeeName = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employeeName.trim()) {
+      setFeedback({ type: 'error', message: 'Informe seu nome.' });
+      return;
+    }
+    setIsSavingEmployeeName(true);
+    try {
+      updateUserMetadata({ fullName: employeeName.trim() });
+      setFeedback({ type: 'success', message: 'Nome atualizado com sucesso!' });
+      setTimeout(() => setFeedback({ type: null, message: '' }), 3000);
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err?.message || 'Erro ao atualizar nome.' });
+    } finally {
+      setIsSavingEmployeeName(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-[400px] flex flex-col items-center justify-center space-y-4">
@@ -377,6 +400,252 @@ export const SettingsView: React.FC = () => {
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
           Carregando configurações do sistema...
         </p>
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // EXPERIÊNCIA SIMPLIFICADA PARA USUÁRIOS COM PAPEL FUNCIONÁRIO (OPERACIONAL)
+  // ============================================================================
+  if (isEmployee) {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-emerald-600 text-white shadow-xs">
+                <User className="w-5 h-5" />
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                Meu Perfil &amp; Segurança
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Gerencie seus dados pessoais, credenciais de acesso e segurança da sua conta no ANT.
+            </p>
+          </div>
+
+          <Badge variant="green" size="md">
+            <ShieldCheck className="w-3.5 h-3.5 mr-1 inline" />
+            Papel: Funcionário Operacional
+          </Badge>
+        </div>
+
+        {/* Informative Governance Alert */}
+        <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/80 flex items-start gap-3">
+          <Info className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
+          <div className="text-xs text-slate-700 dark:text-slate-300 space-y-1">
+            <div className="font-bold text-purple-900 dark:text-purple-200">
+              Acesso Operacional Simplificado
+            </div>
+            <p className="leading-relaxed">
+              Você possui acesso autorizado aos módulos de <strong>Venda Rápida (PDV)</strong>, <strong>Produtos</strong>, <strong>Consulta de Estoque</strong> e <strong>Movimentações Operacionais</strong>. Parâmetros fiscais da empresa, margens de lucro, relatórios gerenciais e planos de assinatura são configurados exclusivamente pelo Proprietário.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Card 1: Dados Pessoais */}
+          <Card
+            id="employee-profile-card"
+            title="Dados do Colaborador"
+            description="Informações cadastrais e identificação do operador no terminal de vendas."
+            badge={<Badge variant="purple">Identificação</Badge>}
+          >
+            <form onSubmit={handleSaveEmployeeName} className="space-y-4 mt-2">
+              {feedback.type === 'success' && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{feedback.message}</span>
+                </div>
+              )}
+
+              {feedback.type === 'error' && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs font-semibold text-rose-800 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{feedback.message}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Nome Completo
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <User className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    value={employeeName}
+                    onChange={(e) => setEmployeeName(e.target.value)}
+                    placeholder="Seu nome completo"
+                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-purple-600 focus:border-transparent font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  E-mail de Acesso (Login)
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <Mail className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="email"
+                    disabled
+                    value={user?.email || ''}
+                    className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 cursor-not-allowed font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Função</div>
+                  <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Funcionário
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                  <div className="text-[10px] uppercase font-bold text-slate-400">Empresa Vinculada</div>
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5 truncate">
+                    {companyName || 'ANT Microempresa'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  isLoading={isSavingEmployeeName}
+                  variant="primary"
+                  size="md"
+                  className="w-full justify-center"
+                  leftIcon={<Save className="w-4 h-4" />}
+                >
+                  Salvar Meu Nome
+                </Button>
+              </div>
+            </form>
+          </Card>
+
+          {/* Card 2: Alteração de Senha */}
+          <Card
+            id="employee-password-card"
+            title="Alteração de Senha"
+            description="Mantenha sua conta segura alterando sua senha de acesso periodicamente."
+            badge={<Badge variant="purple">Credenciais</Badge>}
+          >
+            <form onSubmit={handleChangePassword} className="space-y-4 mt-2">
+              {passwordFeedback.type === 'success' && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{passwordFeedback.message}</span>
+                </div>
+              )}
+
+              {passwordFeedback.type === 'error' && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs font-semibold text-rose-800 dark:text-rose-300 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{passwordFeedback.message}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Nova Senha (mínimo 6 caracteres)
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <Lock className="w-4 h-4" />
+                  </span>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-9 pr-10 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Confirmar Nova Senha
+                </label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <KeyRound className="w-4 h-4" />
+                  </span>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-9 pr-10 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-purple-600 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <Button
+                  type="submit"
+                  isLoading={isChangingPassword}
+                  variant="outline"
+                  size="md"
+                  className="w-full border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40"
+                  leftIcon={<KeyRound className="w-4 h-4" />}
+                >
+                  Atualizar Senha
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+
+        {/* Card 3: Sessão & Logout */}
+        <Card
+          id="employee-session-card"
+          title="Sessão &amp; Desconexão"
+          description="Controle de acesso à conta e opções de saída segura do sistema."
+          badge={<Badge variant="neutral">Sessão</Badge>}
+        >
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-2">
+            <div className="text-xs text-slate-600 dark:text-slate-400">
+              Conectado como <strong className="text-slate-900 dark:text-slate-100">{user?.email}</strong>. Lembre-se de encerrar sua sessão ao deixar o terminal de trabalho.
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <Button
+                variant="danger"
+                size="md"
+                className="w-full sm:w-auto justify-center"
+                leftIcon={<LogOut className="w-4 h-4" />}
+                onClick={() => signOut()}
+              >
+                Sair da Conta (Logout)
+              </Button>
+            </div>
+          </div>
+        </Card>
       </div>
     );
   }

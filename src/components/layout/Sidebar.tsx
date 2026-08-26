@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard,
+  Zap,
   Package,
   ArrowLeftRight,
   DollarSign,
@@ -44,6 +45,7 @@ interface NavItem {
 
 const staticNavItems: NavItem[] = [
   { id: 'inicio', label: 'Início', icon: LayoutDashboard },
+  { id: 'venda_rapida', label: 'Venda Rápida', icon: Zap, badge: 'PDV', badgeColor: 'purple' },
   { id: 'empresa', label: 'Empresa', icon: Building2 },
   { id: 'produtos', label: 'Produtos', icon: Package },
   { id: 'movimentacoes', label: 'Movimentações', icon: ArrowLeftRight },

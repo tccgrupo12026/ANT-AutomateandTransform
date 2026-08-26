@@ -20,6 +20,7 @@ import { SubscriptionBanner } from './components/subscription/SubscriptionBanner
 import { NavigationSection } from './types';
 
 import { OverviewView } from './components/views/OverviewView';
+import { QuickSaleView } from './components/views/QuickSaleView';
 import { ProductsView } from './components/views/ProductsView';
 import { StockView } from './components/views/StockView';
 import { MovementsView } from './components/views/MovementsView';
@@ -177,6 +178,8 @@ function AppContent() {
       // Rotas Padrão de Clientes / Gestão de Empresas
       case 'inicio':
         return <OverviewView onNavigate={setCurrentSection} />;
+      case 'venda_rapida':
+        return <QuickSaleView />;
       case 'produtos':
         return <ProductsView />;
       case 'estoque':

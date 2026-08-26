@@ -12,6 +12,7 @@
 
 export type NavigationSection =
   | 'inicio'
+  | 'venda_rapida'
   | 'produtos'
   | 'estoque'
   | 'movimentacoes'
@@ -34,6 +35,43 @@ export type NavigationSection =
 export * from './subscription';
 export * from './rbac';
 export * from './admin';
+
+export type PaymentMethod = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro';
+
+export interface Sale {
+  id?: string;
+  company_id?: string;
+  company_name?: string;
+  product_id?: string;
+  product_name: string;
+  product_category?: string;
+  barcode?: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  payment_method: PaymentMethod;
+  user_id?: string | null;
+  user_name?: string;
+  user_email?: string;
+  notes?: string;
+  sale_date: string;
+  created_at?: string;
+}
+
+export interface SaleFormData {
+  product_id: string;
+  quantity: number | string;
+  payment_method: PaymentMethod;
+  notes?: string;
+  cash_tendered?: number | string; // Para cálculo de troco se dinheiro
+}
+
+export interface SaleSummaryMetrics {
+  totalSalesToday: number;
+  revenueToday: number;
+  itemsSoldToday: number;
+  averageTicketToday: number;
+}
 
 export interface Company {
   id?: string;
