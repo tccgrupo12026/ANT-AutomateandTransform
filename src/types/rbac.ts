@@ -15,21 +15,54 @@ import { NavigationSection } from './index';
 
 export type UserRole = 'owner' | 'employee' | 'manager' | 'ant_admin';
 
-export type MemberStatus = 'active' | 'pending' | 'inactive';
+export type MemberStatus = 'active' | 'pending' | 'expired' | 'inactive';
 
 export interface CompanyMember {
   id: string;
   company_id: string;
+  company_name?: string;
   user_id?: string | null;
   email: string;
   name: string;
   role: UserRole;
   status: MemberStatus;
+  invite_token?: string | null;
+  expires_at?: string | null;
   invited_at: string;
   joined_at?: string | null;
+  invited_by?: string | null;
   created_at?: string;
   updated_at?: string;
 }
+
+/**
+ * Verifica se um convite está expirado baseado na data de expiração.
+ */
+export function isInviteExpired(member: CompanyMember): boolean {
+  if (member.status === 'active' || member.status === 'inactive') return false;
+  if (member.status === 'expired') return true;
+  if (member.expires_at) {
+    return new Date(member.expires_at).getTime() < Date.now();
+  }
+  // Se não tem expires_at definido mas tem invited_at, assume 7 dias de validade
+  if (member.invited_at) {
+    const inviteDate = new Date(member.invited_at).getTime();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    return inviteDate + sevenDaysMs < Date.now();
+  }
+  return false;
+}
+
+/**
+ * Retorna o status efetivo do membro levando em consideração a expiração.
+ */
+export function getMemberEffectiveStatus(member: CompanyMember): MemberStatus {
+  if (member.status === 'active') return 'active';
+  if (member.status === 'inactive') return 'inactive';
+  if (isInviteExpired(member)) return 'expired';
+  return 'pending';
+}
+
 
 export interface RoleDefinition {
   id: UserRole;

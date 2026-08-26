@@ -4,6 +4,8 @@
  *
  * Gerencia o papel real do usuário ativo (Proprietário ou Funcionário),
  * controle de acesso aos módulos do sistema e gestão da equipe da empresa.
+ * Suporta o ciclo completo de convites (envio real por e-mail, tokens seguros,
+ * expiração e aceite com criação de senha).
  * 100% Determinístico — SEM Inteligência Artificial.
  */
 
@@ -25,7 +27,9 @@ import {
   updateMemberRole,
   removeCompanyMember,
   resendMemberInvitation,
+  findMemberMembership,
   clearLegacySimulatedRoles,
+  InviteMemberResult,
 } from '../services/rbacService';
 
 interface RbacContextType {
@@ -37,16 +41,22 @@ interface RbacContextType {
   isEmployee: boolean;
   isManager: boolean;
   isAdmin: boolean;
+  effectiveCompanyId: string;
+  effectiveCompanyName: string;
   canAccess: (section: NavigationSection) => boolean;
   hasPermission: (permission: keyof RoleDefinition['permissions']) => boolean;
-  inviteMember: (name: string, email: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
+  inviteMember: (
+    name: string,
+    email: string,
+    role: UserRole
+  ) => Promise<InviteMemberResult>;
   editMember: (
     memberId: string,
     data: { name: string; email: string; role: UserRole; status?: MemberStatus }
   ) => Promise<{ success: boolean; error?: string }>;
   updateRole: (memberId: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
   removeMember: (memberId: string) => Promise<{ success: boolean; error?: string }>;
-  resendInvite: (memberId: string) => Promise<{ success: boolean; message: string }>;
+  resendInvite: (memberId: string) => Promise<InviteMemberResult>;
   refreshMembers: () => Promise<void>;
 }
 
@@ -61,20 +71,25 @@ const RbacContext = createContext<RbacContextType>({
   isEmployee: false,
   isManager: false,
   isAdmin: false,
+  effectiveCompanyId: 'default_company',
+  effectiveCompanyName: 'Minha Empresa',
   canAccess: () => true,
   hasPermission: () => true,
-  inviteMember: async () => ({ success: false }),
+  inviteMember: async () => ({ success: false, inviteLink: '', emailSent: false }),
   editMember: async () => ({ success: false }),
   updateRole: async () => ({ success: false }),
   removeMember: async () => ({ success: false }),
-  resendInvite: async () => ({ success: false, message: '' }),
+  resendInvite: async () => ({ success: false, inviteLink: '', emailSent: false }),
   refreshMembers: async () => {},
 });
 
 export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, fullName, companyName } = useAuth();
-  const companyId = companyName ? companyName.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'default_company';
 
+  const [effectiveCompanyId, setEffectiveCompanyId] = useState<string>(() => {
+    return companyName ? companyName.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'default_company';
+  });
+  const [effectiveCompanyName, setEffectiveCompanyName] = useState<string>(companyName || 'Minha Empresa');
   const [members, setMembers] = useState<CompanyMember[]>([]);
   const [currentRole, setCurrentRole] = useState<UserRole>('owner');
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -83,29 +98,45 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Limpeza de segurança para remover qualquer flag antiga de simulação
       clearLegacySimulatedRoles();
 
-      const data = await fetchCompanyMembers(companyId, {
+      let targetCompanyId = companyName
+        ? companyName.toLowerCase().replace(/[^a-z0-9]/g, '_')
+        : 'default_company';
+      let targetCompanyName = companyName || 'Minha Empresa';
+      let resolvedRole: UserRole = 'owner';
+
+      // 1. Verifica se o usuário autenticado foi convidado e pertence a uma empresa existente
+      if (user?.id) {
+        const membership = await findMemberMembership(user.id, user.email);
+        if (membership) {
+          targetCompanyId = membership.company_id;
+          targetCompanyName = membership.company_name || targetCompanyName;
+          resolvedRole = membership.role;
+        }
+      }
+
+      setEffectiveCompanyId(targetCompanyId);
+      setEffectiveCompanyName(targetCompanyName);
+      setCurrentRole(resolvedRole);
+
+      // 2. Carrega todos os membros da empresa
+      const data = await fetchCompanyMembers(targetCompanyId, {
         id: user?.id,
         email: user?.email,
         name: fullName,
+        companyName: targetCompanyName,
       });
       setMembers(data);
 
-      // Encontra o papel real do usuário atual no time
+      // Se encontrou o membro na lista da empresa, atualiza o papel
       if (user?.email) {
         const currentMember = data.find(
           (m) => m.email.toLowerCase() === user.email!.toLowerCase()
         );
         if (currentMember) {
           setCurrentRole(currentMember.role);
-        } else {
-          // O criador/usuário da conta é sempre Proprietário
-          setCurrentRole('owner');
         }
-      } else {
-        setCurrentRole('owner');
       }
     } catch (err) {
       console.warn('Erro ao carregar permissões e membros:', err);
@@ -113,7 +144,7 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [companyId, user?.id, user?.email, fullName]);
+  }, [companyName, user?.id, user?.email, fullName]);
 
   useEffect(() => {
     loadData();
@@ -141,14 +172,21 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const handleInviteMember = useCallback(
-    async (name: string, email: string, role: UserRole) => {
-      const res = await inviteCompanyMember(companyId, { name, email, role });
+    async (name: string, email: string, role: UserRole): Promise<InviteMemberResult> => {
+      const res = await inviteCompanyMember(effectiveCompanyId, {
+        name,
+        email,
+        role,
+        companyName: effectiveCompanyName,
+        inviterName: fullName,
+        inviterUserId: user?.id,
+      });
       if (res.success) {
         await loadData();
       }
       return res;
     },
-    [companyId, loadData]
+    [effectiveCompanyId, effectiveCompanyName, fullName, user?.id, loadData]
   );
 
   const handleEditMember = useCallback(
@@ -156,42 +194,49 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
       memberId: string,
       data: { name: string; email: string; role: UserRole; status?: MemberStatus }
     ) => {
-      const res = await updateCompanyMember(companyId, memberId, data);
+      const res = await updateCompanyMember(effectiveCompanyId, memberId, data);
       if (res.success) {
         await loadData();
       }
       return res;
     },
-    [companyId, loadData]
+    [effectiveCompanyId, loadData]
   );
 
   const handleUpdateRole = useCallback(
     async (memberId: string, role: UserRole) => {
-      const res = await updateMemberRole(companyId, memberId, role);
+      const res = await updateMemberRole(effectiveCompanyId, memberId, role);
       if (res.success) {
         await loadData();
       }
       return res;
     },
-    [companyId, loadData]
+    [effectiveCompanyId, loadData]
   );
 
   const handleRemoveMember = useCallback(
     async (memberId: string) => {
-      const res = await removeCompanyMember(companyId, memberId);
+      const res = await removeCompanyMember(effectiveCompanyId, memberId);
       if (res.success) {
         await loadData();
       }
       return res;
     },
-    [companyId, loadData]
+    [effectiveCompanyId, loadData]
   );
 
   const handleResendInvite = useCallback(
-    async (memberId: string) => {
-      return await resendMemberInvitation(companyId, memberId);
+    async (memberId: string): Promise<InviteMemberResult> => {
+      const res = await resendMemberInvitation(effectiveCompanyId, memberId, {
+        companyName: effectiveCompanyName,
+        inviterName: fullName,
+      });
+      if (res.success) {
+        await loadData();
+      }
+      return res;
     },
-    [companyId]
+    [effectiveCompanyId, effectiveCompanyName, fullName, loadData]
   );
 
   return (
@@ -205,6 +250,8 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isEmployee,
         isManager,
         isAdmin,
+        effectiveCompanyId,
+        effectiveCompanyName,
         canAccess,
         hasPermission,
         inviteMember: handleInviteMember,
@@ -221,4 +268,3 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useRbac = () => useContext(RbacContext);
-

@@ -78,6 +78,9 @@ const supabasePublishableKey = getEnvVar('SUPABASE_PUBLISHABLE_KEY', [
   'VITE_SUPABASE_ANON_KEY',
 ]);
 
+const rawResendApiKey = getEnvVar('RESEND_API_KEY', ['VITE_RESEND_API_KEY']);
+const rawResendFromEmail = getEnvVar('RESEND_FROM_EMAIL', ['VITE_RESEND_FROM_EMAIL']) || 'ANT Gestão <convites@resend.dev>';
+
 export const config = {
   appName: 'ANT — Automate and Transform',
   appDescription: 'Plataforma web simples, moderna e acessível para gestão de microempresas',
@@ -87,6 +90,27 @@ export const config = {
     publishableKey: supabasePublishableKey,
     isConfigured: Boolean(validatedSupabaseUrl && supabasePublishableKey),
   },
+  email: {
+    resendApiKey: rawResendApiKey,
+    fromEmail: rawResendFromEmail,
+    isConfigured: Boolean(rawResendApiKey && rawResendApiKey.length > 5),
+  },
   isProduction: typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD),
 };
+
+/**
+ * Retorna a URL base limpa da aplicação para montagem de links de convite.
+ */
+export function getAppBaseUrl(): string {
+  if (typeof window !== 'undefined' && window.location) {
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    return `${origin}${pathname}`;
+  }
+  if (config.appUrl) {
+    return config.appUrl;
+  }
+  return 'https://ant.app';
+}
+
 

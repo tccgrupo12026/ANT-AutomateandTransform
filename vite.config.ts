@@ -13,6 +13,8 @@ export default defineConfig(() => {
       'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL || ''),
       'process.env.SUPABASE_PUBLISHABLE_KEY': JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY || ''),
       'process.env.APP_URL': JSON.stringify(process.env.APP_URL || ''),
+      'process.env.RESEND_API_KEY': JSON.stringify(process.env.RESEND_API_KEY || ''),
+      'process.env.RESEND_FROM_EMAIL': JSON.stringify(process.env.RESEND_FROM_EMAIL || ''),
     },
 
     resolve: {

@@ -2,14 +2,15 @@
  * ANT — Automate and Transform
  * Plataforma web simples, moderna e acessível para gestão de microempresas
  *
- * Módulo de Autenticação com Supabase Auth & Proteção de Rotas
+ * Módulo de Autenticação com Supabase Auth, RBAC & Suporte a Convites com Links Seguros
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { RbacProvider, useRbac } from './contexts/RbacContext';
 import { AuthView } from './components/auth/AuthView';
+import { AcceptInviteView } from './components/auth/AcceptInviteView';
 import { LandingPage } from './components/landing/LandingPage';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -37,13 +38,37 @@ import { NotFoundView } from './components/views/NotFoundView';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
-  const { canAccess } = useRbac();
+  const { canAccess, refreshMembers } = useRbac();
   const [currentSection, setCurrentSection] = useState<NavigationSection>('inicio');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Detecção de link de convite na URL
+  const [inviteToken, setInviteToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const token = searchParams.get('invite_token');
+      if (token) return token;
+
+      // Fallback para hash (ex: /#invite_token=xxx)
+      if (window.location.hash.includes('invite_token=')) {
+        const hashQuery = window.location.hash.substring(window.location.hash.indexOf('?') + 1);
+        const hashParams = new URLSearchParams(hashQuery);
+        return hashParams.get('invite_token');
+      }
+    }
+    return null;
+  });
 
   // Unauthenticated view state: 'landing' or 'auth'
   const [unauthView, setUnauthView] = useState<'landing' | 'auth'>('landing');
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'signup'>('login');
+
+  const cleanInviteUrl = () => {
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  };
 
   // 1. Loading State Screen
   if (isLoading) {
@@ -62,7 +87,27 @@ function AppContent() {
     );
   }
 
-  // 2. Unauthenticated State (Public SaaS Landing Page & Auth Flow)
+  // 2. Fluxo Especial: Link Seguro de Convite de Colaborador
+  if (inviteToken) {
+    return (
+      <AcceptInviteView
+        token={inviteToken}
+        onAccepted={async () => {
+          cleanInviteUrl();
+          setInviteToken(null);
+          await refreshMembers();
+        }}
+        onGoToLogin={() => {
+          cleanInviteUrl();
+          setInviteToken(null);
+          setUnauthView('auth');
+          setAuthInitialMode('login');
+        }}
+      />
+    );
+  }
+
+  // 3. Unauthenticated State (Public SaaS Landing Page & Auth Flow)
   if (!user) {
     if (unauthView === 'landing') {
       return (
@@ -92,7 +137,7 @@ function AppContent() {
     );
   }
 
-  // 3. Authenticated State -> Workspace & Dashboard with RBAC Guard
+  // 4. Authenticated State -> Workspace & Dashboard with RBAC Guard
   const renderActiveView = () => {
     // RBAC Route Permission Check
     if (!canAccess(currentSection)) {
@@ -177,4 +222,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-
