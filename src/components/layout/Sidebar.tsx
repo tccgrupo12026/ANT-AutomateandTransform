@@ -17,6 +17,9 @@ import {
   Crown,
   ShieldCheck,
   Briefcase,
+  LifeBuoy,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 import { AntLogo } from '../common/AntLogo';
 import { NavigationSection } from '../../types';
@@ -54,6 +57,14 @@ const staticNavItems: NavItem[] = [
   { id: 'configuracoes', label: 'Configurações', icon: Settings },
 ];
 
+const adminNavItems: NavItem[] = [
+  { id: 'admin_dashboard', label: 'Dashboard SaaS', icon: LayoutDashboard },
+  { id: 'admin_companies', label: 'Empresas Clientes', icon: Building2 },
+  { id: 'admin_subscriptions', label: 'Planos & Assinaturas', icon: Crown },
+  { id: 'admin_platform', label: 'Config. Plataforma', icon: Settings },
+  { id: 'admin_support', label: 'Suporte & Chamados', icon: LifeBuoy },
+];
+
 export const Sidebar: React.FC<SidebarProps> = ({
   currentSection,
   onSelectSection,
@@ -62,9 +73,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { companyName, fullName, signOut } = useAuth();
   const { summary } = useSubscription();
-  const { canAccess, currentRole, roleDefinition } = useRbac();
+  const { canAccess, currentRole, roleDefinition, isAdmin } = useRbac();
 
-  const filteredNavItems = staticNavItems.filter((item) => canAccess(item.id));
+  const isAntAdmin = currentRole === 'ant_admin' || isAdmin;
+  const filteredNavItems = isAntAdmin
+    ? adminNavItems
+    : staticNavItems.filter((item) => canAccess(item.id));
 
   const planBadgeText = summary
     ? summary.isTrial
@@ -117,11 +131,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           <div className="flex items-center justify-between px-3 py-1.5">
             <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              Módulos de Gestão
+              {isAntAdmin ? 'Admin ANT (SaaS)' : 'Módulos de Gestão'}
             </span>
             <span
               className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                currentRole === 'owner'
+                isAntAdmin
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : currentRole === 'owner'
                   ? 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
                   : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
               }`}
@@ -143,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onSelectSection(item.id);
                   onCloseMobile();
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                className={`cursor-pointer w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
                     ? 'bg-purple-600 text-white shadow-sm shadow-purple-200 dark:shadow-none'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:text-purple-700 dark:hover:text-purple-300'
@@ -186,19 +202,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-3.5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-950/40 space-y-2">
           <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[110px]">
-                {companyName}
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[120px]">
+                {isAntAdmin ? 'ANT Plataforma SaaS' : companyName || 'Minha Empresa'}
               </span>
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
-                {summary?.plan.name || 'Starter'}
+                {isAntAdmin ? 'Superadmin' : summary?.plan.name || 'Starter'}
               </span>
             </div>
             <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
-              <span className="truncate max-w-[110px]">{fullName}</span>
+              <span className="truncate max-w-[110px]">{fullName || 'Usuário'}</span>
               <span className={`font-semibold flex items-center gap-1 ${
-                currentRole === 'owner' ? 'text-purple-600 dark:text-purple-400' : 'text-emerald-600 dark:text-emerald-400'
+                isAntAdmin
+                  ? 'text-purple-600 dark:text-purple-400 font-bold'
+                  : currentRole === 'owner'
+                  ? 'text-purple-600 dark:text-purple-400'
+                  : 'text-emerald-600 dark:text-emerald-400'
               }`}>
-                {currentRole === 'owner' ? <ShieldCheck className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
+                {isAntAdmin ? <Crown className="w-3 h-3 text-amber-500" /> : currentRole === 'owner' ? <ShieldCheck className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
                 {roleDefinition.name}
               </span>
             </div>

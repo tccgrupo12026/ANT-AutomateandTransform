@@ -24,10 +24,16 @@ export type NavigationSection =
   | 'usuarios'
   | 'planos'
   | 'configuracoes'
-  | 'perfil';
+  | 'perfil'
+  | 'admin_dashboard'
+  | 'admin_companies'
+  | 'admin_subscriptions'
+  | 'admin_platform'
+  | 'admin_support';
 
 export * from './subscription';
 export * from './rbac';
+export * from './admin';
 
 export interface Company {
   id?: string;

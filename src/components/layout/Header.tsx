@@ -15,18 +15,27 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate }) => {
   const { user, fullName, companyName, signOut } = useAuth();
   const { summary } = useSubscription();
-  const { currentRole, roleDefinition, isOwner } = useRbac();
+  const { currentRole, roleDefinition, isOwner, isAdmin } = useRbac();
+  const isAntAdmin = currentRole === 'ant_admin' || isAdmin;
   const initial = (fullName || user?.email || 'E').charAt(0).toUpperCase();
 
   const handleGoToPlans = () => {
     if (onNavigate) {
-      onNavigate('planos');
+      if (isAntAdmin) {
+        onNavigate('admin_subscriptions');
+      } else {
+        onNavigate('planos');
+      }
     }
   };
 
   const handleGoToUsers = () => {
-    if (onNavigate && isOwner) {
-      onNavigate('usuarios');
+    if (onNavigate) {
+      if (isAntAdmin) {
+        onNavigate('admin_companies');
+      } else if (isOwner) {
+        onNavigate('usuarios');
+      }
     }
   };
 
@@ -52,7 +61,10 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
             </h1>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            <span className="font-semibold text-purple-700 dark:text-purple-400">{companyName}</span> • ANT Gestão
+            <span className="font-semibold text-purple-700 dark:text-purple-400">
+              {isAntAdmin ? 'ANT Plataforma SaaS' : companyName}
+            </span>{' '}
+            • {isAntAdmin ? 'Painel dos Fundadores' : 'ANT Gestão'}
           </p>
         </div>
       </div>
@@ -63,17 +75,30 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
         <button
           type="button"
           onClick={handleGoToUsers}
-          disabled={!isOwner}
+          disabled={!isOwner && !isAntAdmin}
           className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs ${
-            isOwner ? 'cursor-pointer' : 'cursor-default'
+            isOwner || isAntAdmin ? 'cursor-pointer' : 'cursor-default'
           } ${
-            currentRole === 'owner'
+            isAntAdmin
+              ? 'bg-purple-600 text-white border-purple-500 shadow-xs'
+              : currentRole === 'owner'
               ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800'
               : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
           }`}
-          title={isOwner ? 'Papel: Proprietário (Clique para gerenciar usuários)' : 'Papel: Funcionário (Acesso Operacional)'}
+          title={
+            isAntAdmin
+              ? 'Papel: Admin ANT (Acesso Global da Plataforma)'
+              : isOwner
+              ? 'Papel: Proprietário (Clique para gerenciar usuários)'
+              : 'Papel: Funcionário (Acesso Operacional)'
+          }
         >
-          {currentRole === 'owner' ? (
+          {isAntAdmin ? (
+            <>
+              <Crown className="w-3.5 h-3.5 text-amber-300" />
+              <span>Admin ANT</span>
+            </>
+          ) : currentRole === 'owner' ? (
             <>
               <ShieldCheck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
               <span>Proprietário</span>
@@ -86,8 +111,8 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
           )}
         </button>
 
-        {/* Subscription / Trial Status Badge */}
-        {summary && isOwner && (
+        {/* Subscription / Trial Status Badge (for clients only) */}
+        {!isAntAdmin && summary && isOwner && (
           <button
             type="button"
             onClick={handleGoToPlans}
@@ -133,10 +158,10 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
           </div>
           <div className="hidden md:block text-left">
             <div className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight truncate max-w-[130px]">
-              {companyName}
+              {isAntAdmin ? 'Criador da Plataforma' : companyName}
             </div>
             <div className="text-[10px] text-slate-400 font-medium truncate max-w-[130px]">
-              {user?.email || 'Microempresa'}
+              {user?.email || (isAntAdmin ? 'admin@ant.app' : 'Microempresa')}
             </div>
           </div>
 

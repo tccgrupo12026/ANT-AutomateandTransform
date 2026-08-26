@@ -58,6 +58,7 @@ interface RbacContextType {
   removeMember: (memberId: string) => Promise<{ success: boolean; error?: string }>;
   resendInvite: (memberId: string) => Promise<InviteMemberResult>;
   refreshMembers: () => Promise<void>;
+  switchUserRole: (role: UserRole) => Promise<void>;
 }
 
 const defaultRoleDef = ANT_ROLES.owner;
@@ -81,6 +82,7 @@ const RbacContext = createContext<RbacContextType>({
   removeMember: async () => ({ success: false }),
   resendInvite: async () => ({ success: false, inviteLink: '', emailSent: false }),
   refreshMembers: async () => {},
+  switchUserRole: async () => {},
 });
 
 export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -98,16 +100,25 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      clearLegacySimulatedRoles();
-
       let targetCompanyId = companyName
         ? companyName.toLowerCase().replace(/[^a-z0-9]/g, '_')
         : 'default_company';
       let targetCompanyName = companyName || 'Minha Empresa';
       let resolvedRole: UserRole = 'owner';
 
-      // 1. Verifica se o usuário autenticado foi convidado e pertence a uma empresa existente
-      if (user?.id) {
+      // 0. Verifica se o usuário autenticado possui role definida nos metadados do Supabase ou override local
+      const metaRole = (user?.user_metadata?.role || (user as any)?.app_metadata?.role) as UserRole | undefined;
+      const storedRole = user?.id ? (localStorage.getItem(`ant_user_role_${user.id}`) as UserRole | null) : null;
+
+      if (metaRole === 'ant_admin' || storedRole === 'ant_admin') {
+        resolvedRole = 'ant_admin';
+        targetCompanyName = 'ANT Gestão — Plataforma SaaS';
+      } else if (storedRole && (storedRole === 'owner' || storedRole === 'employee' || storedRole === 'manager')) {
+        resolvedRole = storedRole;
+      }
+
+      // 1. Se não for ant_admin, verifica se o usuário autenticado foi convidado e pertence a uma empresa existente
+      if (resolvedRole !== 'ant_admin' && user?.id) {
         const membership = await findMemberMembership(user.id, user.email);
         if (membership) {
           targetCompanyId = membership.company_id;
@@ -121,22 +132,26 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentRole(resolvedRole);
 
       // 2. Carrega todos os membros da empresa
-      const data = await fetchCompanyMembers(targetCompanyId, {
-        id: user?.id,
-        email: user?.email,
-        name: fullName,
-        companyName: targetCompanyName,
-      });
-      setMembers(data);
+      if (resolvedRole !== 'ant_admin') {
+        const data = await fetchCompanyMembers(targetCompanyId, {
+          id: user?.id,
+          email: user?.email,
+          name: fullName,
+          companyName: targetCompanyName,
+        });
+        setMembers(data);
 
-      // Se encontrou o membro na lista da empresa, atualiza o papel
-      if (user?.email) {
-        const currentMember = data.find(
-          (m) => m.email.toLowerCase() === user.email!.toLowerCase()
-        );
-        if (currentMember) {
-          setCurrentRole(currentMember.role);
+        // Se encontrou o membro na lista da empresa, atualiza o papel
+        if (user?.email && !storedRole) {
+          const currentMember = data.find(
+            (m) => m.email.toLowerCase() === user.email!.toLowerCase()
+          );
+          if (currentMember) {
+            setCurrentRole(currentMember.role);
+          }
         }
+      } else {
+        setMembers([]);
       }
     } catch (err) {
       console.warn('Erro ao carregar permissões e membros:', err);
@@ -144,11 +159,19 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [companyName, user?.id, user?.email, fullName]);
+  }, [companyName, user, fullName]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const switchUserRole = useCallback(async (role: UserRole) => {
+    if (user?.id) {
+      localStorage.setItem(`ant_user_role_${user.id}`, role);
+    }
+    setCurrentRole(role);
+    await loadData();
+  }, [user?.id, loadData]);
 
   const roleDefinition = ANT_ROLES[currentRole] || ANT_ROLES.owner;
 
@@ -260,6 +283,7 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
         removeMember: handleRemoveMember,
         resendInvite: handleResendInvite,
         refreshMembers: loadData,
+        switchUserRole,
       }}
     >
       {children}

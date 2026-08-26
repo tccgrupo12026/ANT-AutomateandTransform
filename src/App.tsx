@@ -35,12 +35,28 @@ import { PlansView } from './components/views/PlansView';
 import { UsersView } from './components/views/UsersView';
 import { AccessDeniedView } from './components/views/AccessDeniedView';
 import { NotFoundView } from './components/views/NotFoundView';
+import { AdminDashboardView } from './components/admin/AdminDashboardView';
+import { AdminCompaniesView } from './components/admin/AdminCompaniesView';
+import { AdminSubscriptionsView } from './components/admin/AdminSubscriptionsView';
+import { AdminPlatformView } from './components/admin/AdminPlatformView';
+import { AdminSupportView } from './components/admin/AdminSupportView';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
-  const { canAccess, refreshMembers } = useRbac();
-  const [currentSection, setCurrentSection] = useState<NavigationSection>('inicio');
+  const { canAccess, refreshMembers, currentRole, isAdmin } = useRbac();
+  const [currentSection, setCurrentSection] = useState<NavigationSection>(() => {
+    return currentRole === 'ant_admin' ? 'admin_dashboard' : 'inicio';
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Sync default route if user role becomes ant_admin
+  useEffect(() => {
+    if (currentRole === 'ant_admin' && (currentSection === 'inicio' || !currentSection.startsWith('admin_'))) {
+      setCurrentSection('admin_dashboard');
+    } else if (currentRole !== 'ant_admin' && currentSection.startsWith('admin_')) {
+      setCurrentSection('inicio');
+    }
+  }, [currentRole]);
 
   // Detecção de link de convite na URL
   const [inviteToken, setInviteToken] = useState<string | null>(() => {
@@ -141,10 +157,24 @@ function AppContent() {
   const renderActiveView = () => {
     // RBAC Route Permission Check
     if (!canAccess(currentSection)) {
-      return <AccessDeniedView onNavigateHome={() => setCurrentSection('inicio')} />;
+      const fallbackHome: NavigationSection = currentRole === 'ant_admin' ? 'admin_dashboard' : 'inicio';
+      return <AccessDeniedView onNavigateHome={() => setCurrentSection(fallbackHome)} />;
     }
 
     switch (currentSection) {
+      // Rotas Exclusivas dos Criadores ANT (Admin SaaS)
+      case 'admin_dashboard':
+        return <AdminDashboardView onNavigate={setCurrentSection} />;
+      case 'admin_companies':
+        return <AdminCompaniesView />;
+      case 'admin_subscriptions':
+        return <AdminSubscriptionsView />;
+      case 'admin_platform':
+        return <AdminPlatformView />;
+      case 'admin_support':
+        return <AdminSupportView />;
+
+      // Rotas Padrão de Clientes / Gestão de Empresas
       case 'inicio':
         return <OverviewView onNavigate={setCurrentSection} />;
       case 'produtos':
@@ -178,6 +208,8 @@ function AppContent() {
     }
   };
 
+  const isAntAdmin = currentRole === 'ant_admin' || isAdmin;
+
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased selection:bg-purple-600 selection:text-white">
       {/* Navigation Sidebar */}
@@ -197,8 +229,8 @@ function AppContent() {
         />
 
         <main id="main-content" className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">
-          {/* Top Trial & Subscription Notification Banner */}
-          {currentSection !== 'planos' && (
+          {/* Top Trial & Subscription Notification Banner (apenas para clientes) */}
+          {!isAntAdmin && currentSection !== 'planos' && (
             <SubscriptionBanner onNavigateToPlans={() => setCurrentSection('planos')} />
           )}
 

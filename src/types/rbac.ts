@@ -87,6 +87,7 @@ export interface RoleDefinition {
     canManageSettings: boolean;
     canManageSubscription: boolean;
     canManageUsers: boolean;
+    canAccessAdminPlatform: boolean;
   };
 }
 
@@ -114,6 +115,7 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
       canManageSettings: true,
       canManageSubscription: true,
       canManageUsers: true,
+      canAccessAdminPlatform: false,
     },
   },
   employee: {
@@ -139,6 +141,7 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
       canManageSettings: false,
       canManageSubscription: false,
       canManageUsers: false,
+      canAccessAdminPlatform: false,
     },
   },
   manager: {
@@ -164,40 +167,63 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
       canManageSettings: false,
       canManageSubscription: false,
       canManageUsers: false,
+      canAccessAdminPlatform: false,
     },
   },
   ant_admin: {
     id: 'ant_admin',
     name: 'Admin ANT',
-    badge: 'Em Breve',
-    description: 'Super Administrador da plataforma SaaS global (Preparado na arquitetura).',
-    isAvailable: false,
+    badge: 'Gestão da Plataforma',
+    description: 'Administrador global da plataforma SaaS ANT (painel gerencial e métricas agregadas de clientes, sem acesso aos dados de produtos/financeiro dos clientes por LGPD).',
+    isAvailable: true,
     color: 'slate',
     permissions: {
-      canViewDashboard: true,
-      canViewFinancialMetrics: true,
-      canManageProducts: true,
-      canViewProducts: true,
-      canManageMovements: true,
-      canViewStock: true,
-      canAccessPricing: true,
-      canAccessFinancial: true,
-      canAccessBusinessHealth: true,
-      canAccessReports: true,
-      canAccessCharts: true,
-      canManageCompany: true,
-      canManageSettings: true,
-      canManageSubscription: true,
-      canManageUsers: true,
+      canViewDashboard: false,
+      canViewFinancialMetrics: false,
+      canManageProducts: false,
+      canViewProducts: false,
+      canManageMovements: false,
+      canViewStock: false,
+      canAccessPricing: false,
+      canAccessFinancial: false,
+      canAccessBusinessHealth: false,
+      canAccessReports: false,
+      canAccessCharts: false,
+      canManageCompany: false,
+      canManageSettings: false,
+      canManageSubscription: false,
+      canManageUsers: false,
+      canAccessAdminPlatform: true,
     },
   },
 };
 
 /**
  * Verifica se um papel tem permissão para acessar uma seção de navegação específica.
+ * Garante o isolamento estrito entre Admin ANT (criadores da plataforma) e empresas clientes.
  */
 export function checkSectionPermission(role: UserRole, section: NavigationSection): boolean {
   const roleDef = ANT_ROLES[role] || ANT_ROLES.owner;
+
+  // Seções exclusivas do Admin ANT
+  const isAdminSection =
+    section === 'admin_dashboard' ||
+    section === 'admin_companies' ||
+    section === 'admin_subscriptions' ||
+    section === 'admin_platform' ||
+    section === 'admin_support';
+
+  if (role === 'ant_admin') {
+    if (isAdminSection) return true;
+    if (section === 'perfil') return true;
+    // Admin ANT NÃO tem acesso aos módulos individuais dos clientes por LGPD/Privacidade
+    return false;
+  }
+
+  // Usuários não administradores não acessam áreas de administração global da plataforma
+  if (isAdminSection) {
+    return false;
+  }
 
   switch (section) {
     case 'inicio':
