@@ -1057,19 +1057,19 @@ export const UsersView: React.FC = () => {
               <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="font-bold block text-sm mb-0.5">E-mail Real Enviado com Sucesso!</strong>
-                  O convite oficial foi disparado para <strong>{inviteResult.memberEmail}</strong> via Resend.
+                  <strong className="font-bold block text-sm mb-0.5">E-mail Enviado Automaticamente com Sucesso!</strong>
+                  O convite oficial com o botão de aceite foi disparado para <strong>{inviteResult.memberEmail}</strong> via Resend. O colaborador já pode acessar seu e-mail para criar a senha e entrar na empresa. Não é necessário enviar o link manualmente.
                 </div>
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="font-bold block text-sm mb-0.5">Aviso de Envio de E-mail</strong>
+                  <strong className="font-bold block text-sm mb-0.5">Envio Automático Não Concluído</strong>
                   {inviteResult.emailError ? (
-                    <span>{inviteResult.emailError} Envie o link seguro abaixo diretamente para o colaborador.</span>
+                    <span>Falha no envio via Resend: <strong>{inviteResult.emailError}</strong>. Por favor, copie o link seguro abaixo e encaminhe diretamente ao colaborador.</span>
                   ) : (
-                    <span>O serviço de e-mail (Resend) não está configurado. Envie o link seguro abaixo diretamente para o colaborador.</span>
+                    <span>O serviço de e-mail (Resend) não está configurado. Copie o link seguro abaixo e encaminhe diretamente ao colaborador.</span>
                   )}
                 </div>
               </div>

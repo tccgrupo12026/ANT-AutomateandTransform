@@ -8,6 +8,7 @@
  */
 
 import { config } from '../lib/config';
+import { getSupabaseClient } from '../lib/supabase';
 
 export interface SendInvitationParams {
   toEmail: string;
@@ -172,61 +173,136 @@ function buildInvitationHtml(params: SendInvitationParams): string {
 
 /**
  * Dispara o envio real do e-mail de convite.
- * Integração compatível com a API Resend.
+ * Utiliza o proxy server-side /api/send-invite (evitando CORS do navegador)
+ * com fallback para Supabase Edge Function send-invite.
  */
 export async function sendInvitationEmail(params: SendInvitationParams): Promise<SendEmailResult> {
-  const { resendApiKey, fromEmail, isConfigured } = config.email;
+  const htmlBody = buildInvitationHtml(params);
 
-  // Verificação rigorosa: Se não configurado, relata explicitamente sem simulação
-  if (!isConfigured || !resendApiKey) {
-    return {
-      success: false,
-      sent: false,
-      error: 'Chave de API do serviço de e-mail (Resend) não está configurada no ambiente.',
-    };
-  }
-
+  // 1. Tentativa Primária: Proxy seguro do backend (/api/send-invite)
+  // Executado no servidor Node.js/Express, sem bloqueios de CORS do navegador
   try {
-    const htmlBody = buildInvitationHtml(params);
-
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await fetch('/api/send-invite', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: fromEmail,
-        to: [params.toEmail],
-        subject: `Convite para a equipe de ${params.companyName} — ANT`,
-        html: htmlBody,
+        toEmail: params.toEmail,
+        toName: params.toName,
+        companyName: params.companyName,
+        inviterName: params.inviterName,
+        roleName: params.roleName,
+        inviteLink: params.inviteLink,
+        expiresAt: params.expiresAt,
+        htmlBody,
       }),
     });
 
     const data = await response.json();
 
-    if (!response.ok) {
-      console.warn('Erro retornado pela API Resend ao enviar e-mail:', data);
+    if (response.ok && data.success) {
       return {
-        success: false,
-        sent: false,
-        error: data.message || `Erro no envio de e-mail (HTTP ${response.status})`,
+        success: true,
+        sent: true,
+        messageId: data.messageId,
       };
     }
 
-    return {
-      success: true,
-      sent: true,
-      messageId: data.id,
-    };
-  } catch (err: any) {
-    console.error('Falha de rede ao disparar e-mail via Resend:', err);
-    return {
-      success: false,
-      sent: false,
-      error: err.message || 'Falha de comunicação com o servidor de e-mails.',
-    };
+    if (!response.ok && data.error) {
+      console.warn('Erro retornado pelo proxy Resend:', data);
+      return {
+        success: false,
+        sent: false,
+        error: data.error,
+      };
+    }
+  } catch (proxyErr) {
+    console.warn('Proxy /api/send-invite inacessível, tentando Edge Function:', proxyErr);
   }
+
+  // 2. Tentativa Secundária: Edge Function Supabase (send-invite)
+  try {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      const { data: fnData, error: fnErr } = await supabase.functions.invoke('send-invite', {
+        body: {
+          toEmail: params.toEmail,
+          toName: params.toName,
+          companyName: params.companyName,
+          inviterName: params.inviterName,
+          roleName: params.roleName,
+          inviteLink: params.inviteLink,
+          expiresAt: params.expiresAt,
+          htmlBody,
+        },
+      });
+
+      if (!fnErr && fnData?.success) {
+        return {
+          success: true,
+          sent: true,
+          messageId: fnData.messageId,
+        };
+      }
+
+      if (fnData?.error) {
+        return {
+          success: false,
+          sent: false,
+          error: fnData.error,
+        };
+      }
+    }
+  } catch (edgeErr) {
+    console.warn('Edge Function indisponível:', edgeErr);
+  }
+
+  // 3. Fallback Direto (apenas para ambiente Node/SSR onde CORS não se aplica)
+  const { resendApiKey, fromEmail } = config.email;
+  if (typeof window === 'undefined' && resendApiKey) {
+    try {
+      const directResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [params.toEmail],
+          subject: `Convite para a equipe de ${params.companyName} — ANT`,
+          html: htmlBody,
+        }),
+      });
+
+      const directData = await directResponse.json();
+      if (directResponse.ok) {
+        return {
+          success: true,
+          sent: true,
+          messageId: directData.id,
+        };
+      }
+      return {
+        success: false,
+        sent: false,
+        error: directData.message || 'Falha no Resend direto.',
+      };
+    } catch (directErr: any) {
+      return {
+        success: false,
+        sent: false,
+        error: directErr.message || 'Falha na conexão com o Resend.',
+      };
+    }
+  }
+
+  return {
+    success: false,
+    sent: false,
+    error: 'Não foi possível disparar o e-mail via servidor de e-mail (Resend).',
+  };
 }
 
 /**
@@ -235,3 +311,4 @@ export async function sendInvitationEmail(params: SendInvitationParams): Promise
 export function isEmailConfigured(): boolean {
   return config.email.isConfigured;
 }
+
