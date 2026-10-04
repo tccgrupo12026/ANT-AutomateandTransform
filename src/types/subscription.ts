@@ -5,7 +5,7 @@
 
 export type PlanId = 'starter' | 'business' | 'enterprise';
 
-export type SubscriptionStatus = 'trial' | 'active' | 'expired' | 'suspended';
+export type SubscriptionStatus = 'trial' | 'active' | 'expired' | 'suspended' | 'canceled';
 
 export type BillingCycle = 'monthly' | 'yearly';
 

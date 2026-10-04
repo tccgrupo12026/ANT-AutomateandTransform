@@ -172,143 +172,20 @@ function buildInvitationHtml(params: SendInvitationParams): string {
 }
 
 /**
- * Dispara o envio real do e-mail de convite.
- * Utiliza o proxy server-side /api/send-invite (evitando CORS do navegador)
- * com fallback para Supabase Edge Function send-invite.
+ * O sistema ANT utiliza o fluxo oficial de convites por links seguros manuais.
+ * Disparos externos automatizados de e-mail (Resend/SMTP) foram desativados.
  */
-export async function sendInvitationEmail(params: SendInvitationParams): Promise<SendEmailResult> {
-  const htmlBody = buildInvitationHtml(params);
-
-  // 1. Tentativa Primária: Proxy seguro do backend (/api/send-invite)
-  // Executado no servidor Node.js/Express, sem bloqueios de CORS do navegador
-  try {
-    const response = await fetch('/api/send-invite', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        toEmail: params.toEmail,
-        toName: params.toName,
-        companyName: params.companyName,
-        inviterName: params.inviterName,
-        roleName: params.roleName,
-        inviteLink: params.inviteLink,
-        expiresAt: params.expiresAt,
-        htmlBody,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok && data.success) {
-      return {
-        success: true,
-        sent: true,
-        messageId: data.messageId,
-      };
-    }
-
-    if (!response.ok && data.error) {
-      console.warn('Erro retornado pelo proxy Resend:', data);
-      return {
-        success: false,
-        sent: false,
-        error: data.error,
-      };
-    }
-  } catch (proxyErr) {
-    console.warn('Proxy /api/send-invite inacessível, tentando Edge Function:', proxyErr);
-  }
-
-  // 2. Tentativa Secundária: Edge Function Supabase (send-invite)
-  try {
-    const supabase = getSupabaseClient();
-    if (supabase) {
-      const { data: fnData, error: fnErr } = await supabase.functions.invoke('send-invite', {
-        body: {
-          toEmail: params.toEmail,
-          toName: params.toName,
-          companyName: params.companyName,
-          inviterName: params.inviterName,
-          roleName: params.roleName,
-          inviteLink: params.inviteLink,
-          expiresAt: params.expiresAt,
-          htmlBody,
-        },
-      });
-
-      if (!fnErr && fnData?.success) {
-        return {
-          success: true,
-          sent: true,
-          messageId: fnData.messageId,
-        };
-      }
-
-      if (fnData?.error) {
-        return {
-          success: false,
-          sent: false,
-          error: fnData.error,
-        };
-      }
-    }
-  } catch (edgeErr) {
-    console.warn('Edge Function indisponível:', edgeErr);
-  }
-
-  // 3. Fallback Direto (apenas para ambiente Node/SSR onde CORS não se aplica)
-  const { resendApiKey, fromEmail } = config.email;
-  if (typeof window === 'undefined' && resendApiKey) {
-    try {
-      const directResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [params.toEmail],
-          subject: `Convite para a equipe de ${params.companyName} — ANT`,
-          html: htmlBody,
-        }),
-      });
-
-      const directData = await directResponse.json();
-      if (directResponse.ok) {
-        return {
-          success: true,
-          sent: true,
-          messageId: directData.id,
-        };
-      }
-      return {
-        success: false,
-        sent: false,
-        error: directData.message || 'Falha no Resend direto.',
-      };
-    } catch (directErr: any) {
-      return {
-        success: false,
-        sent: false,
-        error: directErr.message || 'Falha na conexão com o Resend.',
-      };
-    }
-  }
-
+export async function sendInvitationEmail(_params: SendInvitationParams): Promise<SendEmailResult> {
   return {
-    success: false,
+    success: true,
     sent: false,
-    error: 'Não foi possível disparar o e-mail via servidor de e-mail (Resend).',
   };
 }
 
 /**
- * Verifica se o serviço de envio real de e-mails está pronto para uso.
+ * Retorna se o serviço de e-mail automatizado está ativo (desativado por padrão em favor do fluxo por link manual).
  */
 export function isEmailConfigured(): boolean {
-  return config.email.isConfigured;
+  return false;
 }
 

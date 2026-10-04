@@ -11,7 +11,6 @@
 import { getSupabaseClient, executeWithJwtRecovery } from '../lib/supabase';
 import { CompanyMember, UserRole, MemberStatus, isInviteExpired, getMemberEffectiveStatus } from '../types/rbac';
 import { getAppBaseUrl } from '../lib/config';
-import { sendInvitationEmail } from './emailService';
 
 const MEMBERS_CACHE_PREFIX = 'ant_company_members_';
 const SIMULATED_ROLE_PREFIX = 'ant_simulated_role_';
@@ -299,7 +298,7 @@ export interface InviteMemberResult {
   success: boolean;
   member?: CompanyMember;
   inviteLink: string;
-  emailSent: boolean;
+  emailSent?: boolean;
   emailError?: string;
   error?: string;
 }
@@ -389,24 +388,10 @@ export async function inviteCompanyMember(
   const updated = [...current.filter((m) => m.email.toLowerCase() !== emailClean), persistedMember];
   saveMembersToCache(companyId, updated);
 
-  // Tenta disparo REAL do e-mail
-  const roleLabel = data.role === 'owner' ? 'Proprietário' : 'Funcionário (Operacional)';
-  const emailResult = await sendInvitationEmail({
-    toEmail: emailClean,
-    toName: nameClean,
-    companyName: companyNameClean,
-    inviterName: inviterNameClean,
-    roleName: roleLabel,
-    inviteLink: inviteLink,
-    expiresAt: expiresAtIso,
-  });
-
   return {
     success: true,
     member: persistedMember,
     inviteLink: inviteLink,
-    emailSent: emailResult.sent,
-    emailError: emailResult.sent ? undefined : emailResult.error,
   };
 }
 
@@ -469,26 +454,10 @@ export async function resendMemberInvitation(
   const updated = current.map((m) => (m.id === memberId ? updatedTarget : m));
   saveMembersToCache(companyId, updated);
 
-  const companyName = options?.companyName || target.company_name || 'Sua Empresa';
-  const inviterName = options?.inviterName || 'O Proprietário';
-  const roleLabel = target.role === 'owner' ? 'Proprietário' : 'Funcionário';
-
-  const emailResult = await sendInvitationEmail({
-    toEmail: target.email,
-    toName: target.name,
-    companyName: companyName,
-    inviterName: inviterName,
-    roleName: roleLabel,
-    inviteLink: inviteLink,
-    expiresAt: expiresAtIso,
-  });
-
   return {
     success: true,
     member: updatedTarget,
     inviteLink: inviteLink,
-    emailSent: emailResult.sent,
-    emailError: emailResult.sent ? undefined : emailResult.error,
   };
 }
 

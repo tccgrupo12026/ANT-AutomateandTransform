@@ -28,6 +28,7 @@ export type NavigationSection =
   | 'perfil'
   | 'admin_dashboard'
   | 'admin_companies'
+  | 'admin_users'
   | 'admin_subscriptions'
   | 'admin_platform'
   | 'admin_support';

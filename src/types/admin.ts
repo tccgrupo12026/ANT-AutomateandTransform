@@ -16,10 +16,12 @@
  */
 
 import { PlanId, SubscriptionStatus } from './subscription';
+import { UserRole, MemberStatus } from './rbac';
 
 export type AdminNavigationSection =
   | 'admin_dashboard'
   | 'admin_companies'
+  | 'admin_users'
   | 'admin_subscriptions'
   | 'admin_platform'
   | 'admin_support';
@@ -30,6 +32,7 @@ export interface AdminMetrics {
   activeCompanies: number;
   expiredCompanies: number;
   suspendedCompanies: number;
+  canceledCompanies: number;
   totalUsers: number;
   newClientsLast30Days: number;
   starterClients: number;
@@ -61,9 +64,12 @@ export interface AdminCompanyItem {
   plan_name: string;
   subscription_status: SubscriptionStatus;
   users_count: number;
-  days_remaining?: number;
+  days_remaining: number;
   trial_end_date?: string;
   current_period_end?: string;
+  next_billing_date?: string;
+  billing_status?: 'paid' | 'pending' | 'overdue' | 'canceled';
+  notes?: string;
 }
 
 export interface AdminSubscriptionOverview {
@@ -73,4 +79,97 @@ export interface AdminSubscriptionOverview {
   activePaidCount: number;
   trialCount: number;
   churnRate: number;
+}
+
+/**
+ * Usuário da plataforma para o painel Admin ANT.
+ */
+export interface PlatformUserItem {
+  id: string;
+  name: string;
+  email: string;
+  company_id: string;
+  company_name: string;
+  role: UserRole;
+  status: MemberStatus;
+  created_at: string;
+  joined_at?: string | null;
+  last_sign_in_at?: string | null;
+}
+
+/**
+ * Indicadores agregados de usuários da plataforma.
+ */
+export interface PlatformUsersMetrics {
+  totalUsers: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  pendingUsers: number;
+  avgUsersPerCompany: number;
+  companyUsersCount: Record<string, { companyName: string; count: number }>;
+}
+
+/**
+ * Recursos configuráveis por plano.
+ */
+export interface PlanFeaturesConfig {
+  canManageStock: boolean;
+  canManageMovements: boolean;
+  canAccessPricing: boolean;
+  canAccessFinancial: boolean;
+  canAccessBusinessHealth: boolean;
+  canAccessCharts: boolean;
+  canAccessReports: boolean;
+  canManageUsers: boolean;
+}
+
+/**
+ * Estrutura de personalização administrativa dos planos.
+ * Editável diretamente pela interface Admin ANT sem alterar código.
+ */
+export interface CustomPlanConfig {
+  id: PlanId;
+  name: string;
+  description: string;
+  priceMonthly: number;
+  maxUsers: number; // 999 = Ilimitado
+  maxProducts: number; // 99999 = Ilimitado
+  badge?: string;
+  isPopular?: boolean;
+  features: PlanFeaturesConfig;
+}
+
+/**
+ * Configurações globais da plataforma ANT.
+ */
+export interface PlatformGeneralSettings {
+  platformName: string;
+  supportEmail: string;
+  defaultTrialDays: number;
+  allowNewSignups: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+  institutionalNotice: string;
+  showNoticeBanner: boolean;
+  updatedAt?: string;
+}
+
+/**
+ * Estrutura preparada para Histórico e Projeção de Cobranças (Mercado Pago Ready).
+ */
+export interface BillingHistoryItem {
+  id: string;
+  company_id: string;
+  company_name: string;
+  plan_id: PlanId;
+  plan_name: string;
+  amount: number;
+  status: 'paid' | 'pending' | 'overdue' | 'canceled' | 'refunded';
+  due_date: string;
+  paid_at?: string;
+  payment_method_preview: 'pix' | 'credit_card' | 'boleto';
+  gateway_preview: 'mercadopago';
+  external_reference?: string;
+  mercado_pago_preference_id?: string;
+  created_at: string;
 }

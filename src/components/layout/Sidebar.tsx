@@ -60,10 +60,11 @@ const staticNavItems: NavItem[] = [
 ];
 
 const adminNavItems: NavItem[] = [
-  { id: 'admin_dashboard', label: 'Dashboard SaaS', icon: LayoutDashboard },
-  { id: 'admin_companies', label: 'Empresas Clientes', icon: Building2 },
-  { id: 'admin_subscriptions', label: 'Planos & Assinaturas', icon: Crown },
-  { id: 'admin_platform', label: 'Config. Plataforma', icon: Settings },
+  { id: 'admin_dashboard', label: 'Dashboard Executivo', icon: LayoutDashboard },
+  { id: 'admin_companies', label: 'Gestão de Empresas', icon: Building2 },
+  { id: 'admin_users', label: 'Gestão de Usuários', icon: Users },
+  { id: 'admin_subscriptions', label: 'Gestão de Planos & Cobrança', icon: Crown },
+  { id: 'admin_platform', label: 'Configurações do ANT', icon: Settings },
   { id: 'admin_support', label: 'Suporte & Chamados', icon: LifeBuoy },
 ];
 

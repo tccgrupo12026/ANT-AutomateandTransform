@@ -31,7 +31,6 @@ import { useRbac } from '../../contexts/RbacContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole, MemberStatus, CompanyMember, ANT_ROLES, isInviteExpired } from '../../types/rbac';
 import { buildInviteLink, InviteMemberResult } from '../../services/rbacService';
-import { isEmailConfigured } from '../../services/emailService';
 
 export const UsersView: React.FC = () => {
   const {
@@ -61,14 +60,12 @@ export const UsersView: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Modal com o resultado do convite e link seguro copiado
+  // Modal com o resultado do convite e link seguro gerado
   const [inviteResult, setInviteResult] = useState<{
     memberName: string;
     memberEmail: string;
     role: UserRole;
     inviteLink: string;
-    emailSent: boolean;
-    emailError?: string;
   } | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -81,8 +78,6 @@ export const UsersView: React.FC = () => {
 
   // Estado para confirmação de remoção
   const [deletingMember, setDeletingMember] = useState<CompanyMember | null>(null);
-
-  const emailServiceActive = isEmailConfigured();
 
   // Métricas
   const totalMembers = members.length;
@@ -147,14 +142,8 @@ export const UsersView: React.FC = () => {
           memberEmail: inviteEmail,
           role: inviteRole,
           inviteLink: res.inviteLink,
-          emailSent: res.emailSent,
-          emailError: res.emailError,
         });
-        if (res.emailSent) {
-          setSuccessMessage(`Convite enviado por e-mail com sucesso para ${inviteEmail}!`);
-        } else {
-          setSuccessMessage(`Colaborador cadastrado! Link de convite gerado para envio manual.`);
-        }
+        setSuccessMessage('Link de convite gerado com sucesso. Copie o link abaixo e envie ao colaborador.');
       } else {
         setErrorMessage(res.error || 'Não foi possível convidar o usuário.');
       }
@@ -178,14 +167,8 @@ export const UsersView: React.FC = () => {
           memberEmail: member.email,
           role: member.role,
           inviteLink: res.inviteLink,
-          emailSent: res.emailSent,
-          emailError: res.emailError,
         });
-        if (res.emailSent) {
-          setSuccessMessage(`Convite renovado e enviado por e-mail para ${member.email}!`);
-        } else {
-          setSuccessMessage(`Convite renovado com sucesso! Link seguro atualizado com validade de 7 dias.`);
-        }
+        setSuccessMessage('Link de convite gerado com sucesso. Copie o link abaixo e envie ao colaborador.');
       } else {
         setErrorMessage(res.error || 'Erro ao renovar convite.');
       }
@@ -857,9 +840,9 @@ export const UsersView: React.FC = () => {
                               <button
                                 onClick={() => handleResend(member)}
                                 className="px-2 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 transition-colors cursor-pointer"
-                                title="Renovar token e reenviar convite"
+                                title="Renovar token e gerar novo link"
                               >
-                                {expired ? 'Renovar' : 'Reenviar'}
+                                {expired ? 'Renovar' : 'Novo Link'}
                               </button>
                             )}
 
@@ -992,19 +975,11 @@ export const UsersView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Status do envio de e-mail */}
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-2">
-                <Info className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+              {/* Informação sobre o Link Seguro */}
+              <div className="p-3.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/50 text-xs text-purple-900 dark:text-purple-200 flex items-start gap-2.5">
+                <Info className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
                 <p>
-                  {emailServiceActive ? (
-                    <span>
-                      O convite será enviado por e-mail automaticamente com link exclusivo válido por 7 dias.
-                    </span>
-                  ) : (
-                    <span>
-                      <strong>Aviso:</strong> Serviço de e-mail (Resend) não configurado no ambiente. Um link seguro e único será gerado para que você possa copiar e enviar manualmente.
-                    </span>
-                  )}
+                  Um <strong>link seguro e exclusivo de convite</strong> (válido por 7 dias) será gerado para você copiar e enviar ao colaborador por WhatsApp, e-mail, Teams ou Slack.
                 </p>
               </div>
 
@@ -1022,7 +997,7 @@ export const UsersView: React.FC = () => {
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
-                  <span>{isSubmitting ? 'Gerando Convite...' : 'Gerar Convite'}</span>
+                  <span>{isSubmitting ? 'Gerando Link...' : 'Gerar Link de Convite'}</span>
                 </button>
               </div>
             </form>
@@ -1052,28 +1027,14 @@ export const UsersView: React.FC = () => {
               </button>
             </div>
 
-            {/* Status do Disparo do E-mail */}
-            {inviteResult.emailSent ? (
-              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="font-bold block text-sm mb-0.5">E-mail Enviado Automaticamente com Sucesso!</strong>
-                  O convite oficial com o botão de aceite foi disparado para <strong>{inviteResult.memberEmail}</strong> via Resend. O colaborador já pode acessar seu e-mail para criar a senha e entrar na empresa. Não é necessário enviar o link manualmente.
-                </div>
+            {/* Status do Convite */}
+            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="font-bold block text-sm mb-0.5">Link de convite gerado com sucesso.</strong>
+                Copie o link abaixo e envie ao colaborador por WhatsApp, e-mail, Teams ou Slack.
               </div>
-            ) : (
-              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="font-bold block text-sm mb-0.5">Envio Automático Não Concluído</strong>
-                  {inviteResult.emailError ? (
-                    <span>Falha no envio via Resend: <strong>{inviteResult.emailError}</strong>. Por favor, copie o link seguro abaixo e encaminhe diretamente ao colaborador.</span>
-                  ) : (
-                    <span>O serviço de e-mail (Resend) não está configurado. Copie o link seguro abaixo e encaminhe diretamente ao colaborador.</span>
-                  )}
-                </div>
-              </div>
-            )}
+            </div>
 
             {/* Link Seguro Único */}
             <div className="space-y-2">
@@ -1110,7 +1071,7 @@ export const UsersView: React.FC = () => {
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 space-y-1">
               <div className="font-bold text-slate-800 dark:text-slate-200">Como funciona o aceite?</div>
               <p>
-                Ao clicar no link, o colaborador abrirá a tela exclusiva do ANT, criará sua senha e entrará diretamente na empresa <strong>{companyName}</strong> com o papel de <strong>{inviteResult.role === 'owner' ? 'Proprietário' : 'Funcionário'}</strong>.
+                Ao abrir o link, o colaborador definirá sua senha e entrará diretamente na empresa <strong>{companyName}</strong> com o papel de <strong>{inviteResult.role === 'owner' ? 'Proprietário' : 'Funcionário'}</strong>.
               </p>
             </div>
 

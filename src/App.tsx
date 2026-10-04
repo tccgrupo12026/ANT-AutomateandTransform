@@ -38,6 +38,7 @@ import { AccessDeniedView } from './components/views/AccessDeniedView';
 import { NotFoundView } from './components/views/NotFoundView';
 import { AdminDashboardView } from './components/admin/AdminDashboardView';
 import { AdminCompaniesView } from './components/admin/AdminCompaniesView';
+import { AdminUsersView } from './components/admin/AdminUsersView';
 import { AdminSubscriptionsView } from './components/admin/AdminSubscriptionsView';
 import { AdminPlatformView } from './components/admin/AdminPlatformView';
 import { AdminSupportView } from './components/admin/AdminSupportView';
@@ -270,6 +271,8 @@ function AppContent() {
         return <AdminDashboardView onNavigate={setCurrentSection} />;
       case 'admin_companies':
         return <AdminCompaniesView />;
+      case 'admin_users':
+        return <AdminUsersView />;
       case 'admin_subscriptions':
         return <AdminSubscriptionsView />;
       case 'admin_platform':
