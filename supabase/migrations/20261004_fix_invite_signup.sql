@@ -1,0 +1,25 @@
+-- ============================================================================
+-- ANT (Automate and Transform) — Resolução do Fluxo de Criação de Usuários por Convite
+-- ============================================================================
+-- Problema:
+-- Ao tentar criar o usuário no aceite do convite pelo frontend com `supabase.auth.signUp()`,
+-- o Supabase Auth dispara a tentativa de enviar um e-mail de confirmação ("Confirm signup")
+-- pelo seu servidor SMTP padrão. Esse servidor gratuito possui um limite rígido de 3 e-mails
+-- por hora ("email rate limit exceeded"), abortando a criação da conta na tabela `auth.users`.
+--
+-- Solução Definitiva no Painel Supabase:
+-- 1. Acesse o Painel do seu projeto Supabase (https://supabase.com/dashboard)
+-- 2. Vá em: Authentication -> Providers -> Email
+-- 3. DESMARQUE a opção: "Confirm email" (ou "Enable email confirmations")
+-- 4. Clique em "Save" (Salvar)
+--
+-- Por que desmarcar "Confirm email":
+-- Como os colaboradores já foram convidados formalmente pelo proprietário através de um
+-- link seguro com token exclusivo de 7 dias, a confirmação adicional por e-mail é redundante
+-- e prejudicial, pois consome a cota do SMTP padrão e bloqueia novos colaboradores.
+-- Com essa opção desmarcada:
+-- - `supabase.auth.signUp()` cria o usuário imediatamente em `auth.users`
+-- - O e-mail já fica marcado como confirmado (`email_confirmed_at = now()`)
+-- - Nenhum e-mail de confirmação é enviado pelo Supabase (taxa de envio zero / sem rate limit)
+-- - A sessão de login é iniciada automaticamente no momento do cadastro
+-- ============================================================================

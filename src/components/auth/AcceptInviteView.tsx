@@ -53,6 +53,12 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({
   useEffect(() => {
     let isMounted = true;
     async function load() {
+      if (!token) {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+        return;
+      }
       setIsLoading(true);
       try {
         const member = await getInvitationByToken(token);
@@ -94,9 +100,42 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({
     try {
       const supabase = getSupabaseClient();
       let createdUserId = '';
+      let sessionEstablished = false;
 
-      if (supabase) {
-        // 1. Tenta criar o usuário no Supabase Auth
+      if (!supabase) {
+        setErrorMessage('Serviço de autenticação não inicializado.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Tentativa 1: Invocar a Edge Function accept-invite (se implantada)
+      // Esta função utiliza service_role e executa admin.createUser({ email_confirm: true }),
+      // contornando o SMTP padrão do Supabase e eliminando o erro de rate limit.
+      let usedEdgeFunction = false;
+      try {
+        const { data: edgeData, error: edgeErr } = await supabase.functions.invoke('accept-invite', {
+          body: {
+            token,
+            password,
+          },
+        });
+
+        if (!edgeErr && edgeData && edgeData.success) {
+          usedEdgeFunction = true;
+          createdUserId = edgeData.userId || '';
+          // Realiza login no cliente com a senha recém-configurada
+          const loginRes = await signIn(invitation.email.trim(), password);
+          if (loginRes.success) {
+            sessionEstablished = true;
+          }
+        }
+      } catch (fnEx) {
+        // Se a edge function não estiver disponível/implantada, prossegue normalmente com o cliente padrão
+        usedEdgeFunction = false;
+      }
+
+      // Tentativa 2: Chamada direta ao Supabase Auth via cliente público
+      if (!usedEdgeFunction) {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: invitation.email.trim(),
           password: password,
@@ -113,18 +152,42 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({
 
         if (signUpError) {
           const msg = signUpError.message || '';
-          // Se já cadastrado, tenta efetuar login com a senha fornecida
-          if (msg.includes('already registered') || msg.includes('User already registered')) {
+          const isRateLimit =
+            msg.toLowerCase().includes('rate limit') ||
+            msg.toLowerCase().includes('too many requests') ||
+            msg.toLowerCase().includes('over_email_send_rate_limit');
+          const isAlreadyRegistered =
+            msg.toLowerCase().includes('already registered') ||
+            msg.toLowerCase().includes('already exists') ||
+            msg.toLowerCase().includes('user already registered');
+
+          if (isRateLimit) {
+            setErrorMessage(
+              'Limite de e-mails do Supabase atingido ("email rate limit exceeded"). O Supabase está tentando enviar e-mails de confirmação pelo seu servidor SMTP padrão (limite de 3/hora). Para resolver definitivamente: no painel do Supabase, acesse Authentication > Providers > Email e desmarque a opção "Confirm email". Como o colaborador já possui link de convite validado, a confirmação adicional por e-mail deve ser desativada.'
+            );
+            setIsSubmitting(false);
+            return;
+          }
+
+          if (isAlreadyRegistered) {
+            // Usuário já cadastrado no Auth: tenta efetuar login com a senha fornecida
             const loginRes = await signIn(invitation.email.trim(), password);
             if (!loginRes.success) {
-              setErrorMessage(
-                'Este e-mail já possui conta no ANT. A senha informada não corresponde à sua conta existente ou o e-mail requer confirmação.'
-              );
+              if (loginRes.error?.toLowerCase().includes('confirm')) {
+                setErrorMessage(
+                  'Este e-mail já possui cadastro no Supabase, mas requer confirmação. Desative a opção "Confirm email" em Authentication > Providers > Email no painel do Supabase para liberar o acesso imediato.'
+                );
+              } else {
+                setErrorMessage(
+                  'Este e-mail já possui conta no ANT. A senha digitada não confere com a conta existente. Digite a senha correta ou faça login diretamente.'
+                );
+              }
               setIsSubmitting(false);
               return;
             }
             const sessionRes = await supabase.auth.getSession();
             createdUserId = sessionRes.data.session?.user?.id || '';
+            sessionEstablished = true;
           } else {
             setErrorMessage(signUpError.message || 'Falha ao registrar conta no servidor.');
             setIsSubmitting(false);
@@ -132,17 +195,38 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({
           }
         } else if (signUpData?.user) {
           createdUserId = signUpData.user.id;
-          // Se não houver sessão ativa, realiza login imediato
-          if (!signUpData.session) {
-            await signIn(invitation.email.trim(), password);
+
+          // Se retornou sessão ativa (Confirm email desmarcado no Supabase)
+          if (signUpData.session) {
+            sessionEstablished = true;
+          } else {
+            // Se sessão for nula (Confirm email ainda ativo no Supabase), tenta login direto
+            const loginRes = await signIn(invitation.email.trim(), password);
+            if (loginRes.success) {
+              sessionEstablished = true;
+            } else {
+              if (loginRes.error?.toLowerCase().includes('confirm')) {
+                setErrorMessage(
+                  'Conta criada com sucesso no Supabase! Porém, a confirmação de e-mail ainda está ativa no projeto. Desative a opção "Confirm email" em Authentication > Providers > Email no painel do Supabase para que novos colaboradores entrem direto sem envio de e-mails secundários.'
+                );
+                setIsSubmitting(false);
+                return;
+              }
+            }
           }
         }
       }
 
-      // 2. Aceita o convite na tabela company_members vinculando o userId
-      const acceptRes = await acceptInvitation(token, createdUserId || `user_${Date.now()}`);
-      if (!acceptRes.success && acceptRes.error) {
-        setErrorMessage(acceptRes.error);
+      // Vincula o usuário confirmado na tabela company_members
+      if (createdUserId) {
+        const acceptRes = await acceptInvitation(token, createdUserId);
+        if (!acceptRes.success && acceptRes.error) {
+          setErrorMessage(acceptRes.error);
+          setIsSubmitting(false);
+          return;
+        }
+      } else {
+        setErrorMessage('Não foi possível vincular o usuário criado no Supabase. Tente novamente.');
         setIsSubmitting(false);
         return;
       }

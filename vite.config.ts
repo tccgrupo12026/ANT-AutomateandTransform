@@ -46,7 +46,7 @@ export default defineConfig(({ mode }) => {
     'ANT Gestão <convites@resend.dev>';
 
   return {
-    base: '/ANT-AutomateandTransform/',
+    base: process.env.GITHUB_PAGES === 'true' ? '/ANT-AutomateandTransform/' : './',
 
     plugins: [react(), tailwindcss()],
 

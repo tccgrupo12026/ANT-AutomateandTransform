@@ -155,11 +155,16 @@ export const config = {
 export function getAppBaseUrl(): string {
   if (typeof window !== 'undefined' && window.location) {
     const origin = window.location.origin;
-    const pathname = window.location.pathname;
+    let pathname = window.location.pathname || '';
+    if (pathname.endsWith('/index.html')) {
+      pathname = pathname.replace(/\/index\.html$/, '');
+    }
+    // Remove trailing slash
+    pathname = pathname.replace(/\/$/, '');
     return `${origin}${pathname}`;
   }
   if (config.appUrl) {
-    return config.appUrl;
+    return config.appUrl.replace(/\/$/, '');
   }
   return 'https://ant.app';
 }

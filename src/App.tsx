@@ -42,6 +42,104 @@ import { AdminSubscriptionsView } from './components/admin/AdminSubscriptionsVie
 import { AdminPlatformView } from './components/admin/AdminPlatformView';
 import { AdminSupportView } from './components/admin/AdminSupportView';
 
+/**
+ * Extrai token de convite e detecta se a URL atual é uma rota de aceite de convite.
+ * Suporta rota dedicada #/aceitar-convite?token=xxx, /aceitar-convite, e retrocompatibilidade com invite_token.
+ */
+function extractInviteFromUrl(): { isInviteRoute: boolean; token: string | null } {
+  if (typeof window === 'undefined') {
+    return { isInviteRoute: false, token: null };
+  }
+
+  try {
+    const search = window.location.search || '';
+    const hash = window.location.hash || '';
+    const pathname = window.location.pathname || '';
+    const href = window.location.href || '';
+
+    const isInviteRoute =
+      pathname.includes('/aceitar-convite') ||
+      pathname.includes('/accept-invite') ||
+      pathname.includes('/convite') ||
+      hash.includes('aceitar-convite') ||
+      hash.includes('accept-invite') ||
+      hash.includes('convite') ||
+      search.includes('invite_token') ||
+      search.includes('token=') ||
+      hash.includes('invite_token') ||
+      hash.includes('token=');
+
+    // 1. Busca em query parameters padrão (?token=xxx ou ?invite_token=xxx)
+    if (search) {
+      const sp = new URLSearchParams(search);
+      const t =
+        sp.get('token') ||
+        sp.get('invite_token') ||
+        sp.get('inviteToken') ||
+        sp.get('invitation_token');
+      if (t) return { isInviteRoute: true, token: t.trim() };
+    }
+
+    // 2. Busca em hash (#/aceitar-convite?token=xxx ou #invite_token=xxx)
+    if (hash) {
+      if (hash.includes('?')) {
+        const queryPart = hash.substring(hash.indexOf('?') + 1);
+        const hp = new URLSearchParams(queryPart);
+        const t =
+          hp.get('token') ||
+          hp.get('invite_token') ||
+          hp.get('inviteToken') ||
+          hp.get('invitation_token');
+        if (t) return { isInviteRoute: true, token: t.trim() };
+      }
+
+      const cleanHash = hash.replace(/^#\/?/, '');
+      const hpDirect = new URLSearchParams(cleanHash);
+      const tDirect =
+        hpDirect.get('token') ||
+        hpDirect.get('invite_token') ||
+        hpDirect.get('inviteToken');
+      if (tDirect) return { isInviteRoute: true, token: tDirect.trim() };
+
+      const hashSegments = cleanHash.split('/');
+      const keywords = ['aceitar-convite', 'accept-invite', 'convite', 'invite'];
+      for (let i = 0; i < hashSegments.length; i++) {
+        if (keywords.includes(hashSegments[i]) && hashSegments[i + 1]) {
+          const segToken = hashSegments[i + 1].split('?')[0];
+          if (segToken && segToken.length > 5) {
+            return { isInviteRoute: true, token: segToken.trim() };
+          }
+        }
+      }
+    }
+
+    // 3. Busca em pathname (/aceitar-convite/TOKEN)
+    if (pathname) {
+      const pathSegments = pathname.split('/').filter(Boolean);
+      const keywords = ['aceitar-convite', 'accept-invite', 'convite', 'invite'];
+      for (let i = 0; i < pathSegments.length; i++) {
+        if (keywords.includes(pathSegments[i]) && pathSegments[i + 1]) {
+          const segToken = pathSegments[i + 1].split('?')[0];
+          if (segToken && segToken.length > 5) {
+            return { isInviteRoute: true, token: segToken.trim() };
+          }
+        }
+      }
+    }
+
+    // 4. Regex fallback em toda a URL
+    const match = href.match(/[?&#](?:invite_)?token=([a-zA-Z0-9_\-]+)/i);
+    if (match && match[1]) {
+      return { isInviteRoute: true, token: match[1].trim() };
+    }
+
+    return { isInviteRoute, token: null };
+  } catch (err) {
+    console.warn('Erro ao verificar rota de convite:', err);
+    return { isInviteRoute: false, token: null };
+  }
+}
+
 function AppContent() {
   const { user, isLoading } = useAuth();
   const { canAccess, refreshMembers, currentRole, isAdmin } = useRbac();
@@ -59,22 +157,25 @@ function AppContent() {
     }
   }, [currentRole]);
 
-  // Detecção de link de convite na URL
-  const [inviteToken, setInviteToken] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      const searchParams = new URLSearchParams(window.location.search);
-      const token = searchParams.get('invite_token');
-      if (token) return token;
-
-      // Fallback para hash (ex: /#invite_token=xxx)
-      if (window.location.hash.includes('invite_token=')) {
-        const hashQuery = window.location.hash.substring(window.location.hash.indexOf('?') + 1);
-        const hashParams = new URLSearchParams(hashQuery);
-        return hashParams.get('invite_token');
-      }
-    }
-    return null;
+  // Detecção e monitoramento da rota exclusiva de aceite de convite na URL
+  const [inviteState, setInviteState] = useState<{ isInviteRoute: boolean; token: string | null }>(() => {
+    return extractInviteFromUrl();
   });
+
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const extracted = extractInviteFromUrl();
+      if (extracted.isInviteRoute) {
+        setInviteState(extracted);
+      }
+    };
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, []);
 
   // Unauthenticated view state: 'landing' or 'auth'
   const [unauthView, setUnauthView] = useState<'landing' | 'auth'>('landing');
@@ -104,19 +205,20 @@ function AppContent() {
     );
   }
 
-  // 2. Fluxo Especial: Link Seguro de Convite de Colaborador
-  if (inviteToken) {
+  // 2. Fluxo Especial: Rota Exclusiva de Aceite de Convite de Colaborador
+  // NUNCA redireciona para a tela pública de Criar Conta nem Landing Page!
+  if (inviteState.isInviteRoute) {
     return (
       <AcceptInviteView
-        token={inviteToken}
+        token={inviteState.token || ''}
         onAccepted={async () => {
           cleanInviteUrl();
-          setInviteToken(null);
+          setInviteState({ isInviteRoute: false, token: null });
           await refreshMembers();
         }}
         onGoToLogin={() => {
           cleanInviteUrl();
-          setInviteToken(null);
+          setInviteState({ isInviteRoute: false, token: null });
           setUnauthView('auth');
           setAuthInitialMode('login');
         }}

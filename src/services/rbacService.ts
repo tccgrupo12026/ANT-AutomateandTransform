@@ -56,12 +56,12 @@ export function generateInviteToken(): string {
 }
 
 /**
- * Monta o link único e seguro de aceite de convite.
+ * Monta o link único e seguro de aceite de convite utilizando a rota dedicada.
  */
 export function buildInviteLink(token: string): string {
   const baseUrl = getAppBaseUrl();
-  const separator = baseUrl.includes('?') ? '&' : '?';
-  return `${baseUrl}${separator}invite_token=${token}`;
+  const cleanBase = baseUrl.replace(/\/$/, '');
+  return `${cleanBase}/#/aceitar-convite?token=${encodeURIComponent(token)}`;
 }
 
 /**
