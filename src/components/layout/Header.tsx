@@ -32,7 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
   const handleGoToUsers = () => {
     if (onNavigate) {
       if (isAntAdmin) {
-        onNavigate('admin_companies');
+        onNavigate('admin_users');
       } else if (isOwner) {
         onNavigate('usuarios');
       }

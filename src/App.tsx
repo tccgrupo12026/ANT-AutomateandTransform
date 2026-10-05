@@ -302,15 +302,15 @@ function AppContent() {
       case 'relatorios':
         return <ReportsView onNavigate={setCurrentSection} />;
       case 'empresa':
-        return <CompanyView />;
+        return currentRole === 'ant_admin' ? <AdminCompaniesView /> : <CompanyView />;
       case 'usuarios':
-        return <UsersView />;
+        return currentRole === 'ant_admin' ? <AdminUsersView /> : <UsersView />;
       case 'perfil':
         return <CompanyView />;
       case 'planos':
-        return <PlansView />;
+        return currentRole === 'ant_admin' ? <AdminSubscriptionsView /> : <PlansView />;
       case 'configuracoes':
-        return <SettingsView />;
+        return currentRole === 'ant_admin' ? <AdminPlatformView /> : <SettingsView />;
       default:
         return <NotFoundView onNavigate={setCurrentSection} />;
     }

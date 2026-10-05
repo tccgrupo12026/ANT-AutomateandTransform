@@ -178,11 +178,11 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
     id: 'ant_admin',
     name: 'Admin ANT',
     badge: 'Gestão da Plataforma',
-    description: 'Administrador global da plataforma SaaS ANT (painel gerencial e métricas agregadas de clientes, sem acesso aos dados de produtos/financeiro dos clientes por LGPD).',
+    description: 'Administrador global da plataforma SaaS ANT (painel executivo, métricas agregadas de empresas, gestão de usuários e cobranças da plataforma, sem acesso a dados confidenciais dos clientes por LGPD).',
     isAvailable: true,
     color: 'slate',
     permissions: {
-      canViewDashboard: false,
+      canViewDashboard: true,
       canAccessQuickSale: false,
       canViewFinancialMetrics: false,
       canManageProducts: false,
@@ -194,10 +194,10 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
       canAccessBusinessHealth: false,
       canAccessReports: false,
       canAccessCharts: false,
-      canManageCompany: false,
-      canManageSettings: false,
-      canManageSubscription: false,
-      canManageUsers: false,
+      canManageCompany: true,
+      canManageSettings: true,
+      canManageSubscription: true,
+      canManageUsers: true,
       canAccessAdminPlatform: true,
     },
   },
@@ -205,15 +205,17 @@ export const ANT_ROLES: Record<UserRole, RoleDefinition> = {
 
 /**
  * Verifica se um papel tem permissão para acessar uma seção de navegação específica.
- * Garante o isolamento estrito entre Admin ANT (criadores da plataforma) e empresas clientes.
+ * Garante o acesso total aos módulos administrativos para o Admin ANT e isolamento de dados de clientes.
  */
 export function checkSectionPermission(role: UserRole, section: NavigationSection): boolean {
   const roleDef = ANT_ROLES[role] || ANT_ROLES.owner;
 
-  // Seções exclusivas do Admin ANT
+  // Seções administrativas da plataforma SaaS
   const isAdminSection =
+    section.startsWith('admin_') ||
     section === 'admin_dashboard' ||
     section === 'admin_companies' ||
+    section === 'admin_users' ||
     section === 'admin_subscriptions' ||
     section === 'admin_platform' ||
     section === 'admin_support';
@@ -221,7 +223,17 @@ export function checkSectionPermission(role: UserRole, section: NavigationSectio
   if (role === 'ant_admin') {
     if (isAdminSection) return true;
     if (section === 'perfil') return true;
-    // Admin ANT NÃO tem acesso aos módulos individuais dos clientes por LGPD/Privacidade
+    // Atalhos e rotas equivalentes para o painel Admin ANT
+    if (
+      section === 'usuarios' ||
+      section === 'planos' ||
+      section === 'configuracoes' ||
+      section === 'empresa' ||
+      section === 'inicio'
+    ) {
+      return true;
+    }
+    // Admin ANT não acessa diretamente módulos operacionais de estoque e vendas de clientes por LGPD
     return false;
   }
 

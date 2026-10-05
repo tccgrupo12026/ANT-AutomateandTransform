@@ -482,6 +482,39 @@ export async function fetchAllPlatformUsers(): Promise<{
     }
   }
 
+  // Fallback em cache local para membros caso o Supabase não retorne ou esteja offline
+  if (userList.length === 0) {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('ant_members_cache_')) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              parsed.forEach((m: any) => {
+                if (m.company_id && deletedCompanyIds.has(m.company_id)) return;
+                userList.push({
+                  id: m.id || m.user_id || `user-${Math.random()}`,
+                  name: m.name || 'Usuário Sem Nome',
+                  email: m.email || 'sem-email@ant.app',
+                  company_id: m.company_id || '',
+                  company_name: m.company_name || 'Empresa Cadastrada',
+                  role: (m.role as UserRole) || 'employee',
+                  status: (m.status as MemberStatus) || 'active',
+                  created_at: m.created_at || new Date().toISOString(),
+                  joined_at: m.joined_at,
+                });
+              });
+            }
+          }
+        }
+      }
+    } catch {
+      // Ignora erro de leitura do cache
+    }
+  }
+
   // Agrupamento de métricas
   const totalUsers = userList.length;
   const activeUsers = userList.filter((u) => u.status === 'active').length;
