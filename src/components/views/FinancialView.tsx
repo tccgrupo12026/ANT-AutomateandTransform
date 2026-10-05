@@ -35,6 +35,7 @@ import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { MetricCardSkeleton, CardSkeleton, TableSkeleton } from '../common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRbac } from '../../contexts/RbacContext';
 import { financialService } from '../../services/financialService';
 import { companyService } from '../../services/companyService';
 import {
@@ -87,6 +88,11 @@ type PeriodPreset = 'este_mes' | 'mes_anterior' | 'ultimos_30' | 'ano_atual' | '
 
 export const FinancialView: React.FC = () => {
   const { user, companyName } = useAuth();
+  const { hasCustomPermission, isOwner } = useRbac();
+
+  const canCreate = isOwner || hasCustomPermission('financial_create');
+  const canEdit = isOwner || hasCustomPermission('financial_edit');
+  const canDelete = isOwner || hasCustomPermission('financial_delete');
 
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
@@ -501,21 +507,25 @@ export const FinancialView: React.FC = () => {
               <RotateCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
 
-            <button
-              onClick={() => handleOpenCreateModal('receita')}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nova Receita</span>
-            </button>
+            {canCreate && (
+              <>
+                <button
+                  onClick={() => handleOpenCreateModal('receita')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nova Receita</span>
+                </button>
 
-            <button
-              onClick={() => handleOpenCreateModal('despesa')}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer border border-purple-500/40"
-            >
-              <Minus className="w-4 h-4" />
-              <span>Nova Despesa</span>
-            </button>
+                <button
+                  onClick={() => handleOpenCreateModal('despesa')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer border border-purple-500/40"
+                >
+                  <Minus className="w-4 h-4" />
+                  <span>Nova Despesa</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -946,22 +956,24 @@ export const FinancialView: React.FC = () => {
             title="Histórico de Lançamentos"
             subtitle={`${filteredTransactions.length} lançamentos encontrados no período selecionado`}
             headerAction={
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleOpenCreateModal('receita')}
-                  className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Receita</span>
-                </button>
-                <button
-                  onClick={() => handleOpenCreateModal('despesa')}
-                  className="px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
-                >
-                  <Minus className="w-3.5 h-3.5" />
-                  <span>Despesa</span>
-                </button>
-              </div>
+              canCreate ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleOpenCreateModal('receita')}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Receita</span>
+                  </button>
+                  <button
+                    onClick={() => handleOpenCreateModal('despesa')}
+                    className="px-2.5 py-1 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                    <span>Despesa</span>
+                  </button>
+                </div>
+              ) : undefined
             }
           >
             {filteredTransactions.length === 0 ? (
@@ -1079,20 +1091,24 @@ export const FinancialView: React.FC = () => {
                           {/* Ações */}
                           <td className="py-3 px-3 align-middle text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => handleOpenEditModal(tx)}
-                                title="Editar lançamento"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors cursor-pointer"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => setTransactionToDelete(tx)}
-                                title="Excluir lançamento"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleOpenEditModal(tx)}
+                                  title="Editar lançamento"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors cursor-pointer"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  onClick={() => setTransactionToDelete(tx)}
+                                  title="Excluir lançamento"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

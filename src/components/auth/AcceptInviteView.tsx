@@ -21,6 +21,7 @@ import {
   ArrowRight,
   Sparkles,
   Check,
+  Briefcase,
 } from 'lucide-react';
 import { AntLogo } from '../common/AntLogo';
 import { getInvitationByToken, acceptInvitation } from '../../services/rbacService';
@@ -375,6 +376,16 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({
               </div>
               <span className="text-xs font-bold text-slate-900 dark:text-white">
                 {invitation.company_name || 'Microempresa'}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-purple-700 dark:text-purple-400" />
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Cargo / Função</span>
+              </div>
+              <span className="text-xs font-bold text-purple-700 dark:text-purple-300">
+                {invitation.job_title || (invitation.role === 'owner' ? 'Proprietário' : 'Colaborador')}
               </span>
             </div>
 

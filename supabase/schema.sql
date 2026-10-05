@@ -260,6 +260,8 @@ CREATE TABLE IF NOT EXISTS public.company_members (
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('owner', 'employee', 'manager', 'ant_admin')),
+  job_title TEXT,
+  permissions JSONB DEFAULT '{}'::jsonb,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('active', 'pending', 'expired', 'inactive')),
   invite_token TEXT UNIQUE,
   expires_at TIMESTAMPTZ,
@@ -332,6 +334,8 @@ CREATE INDEX IF NOT EXISTS idx_company_members_role ON public.company_members(ro
 CREATE INDEX IF NOT EXISTS idx_company_members_user_id ON public.company_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_company_members_invite_token ON public.company_members(invite_token);
 CREATE INDEX IF NOT EXISTS idx_company_members_expires_at ON public.company_members(expires_at);
+CREATE INDEX IF NOT EXISTS idx_company_members_job_title ON public.company_members(job_title);
+CREATE INDEX IF NOT EXISTS idx_company_members_permissions ON public.company_members USING gin (permissions);
 
 
 -- ============================================================================

@@ -44,6 +44,7 @@ import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { AntLogo } from '../common/AntLogo';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRbac } from '../../contexts/RbacContext';
 import {
   reportService,
   ReportType,
@@ -57,6 +58,11 @@ interface ReportsViewProps {
 
 export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
   const { user, companyName } = useAuth();
+  const { hasCustomPermission, isOwner } = useRbac();
+
+  const canExportPdf = isOwner || hasCustomPermission('reports_export_pdf');
+  const canExportCsv = isOwner || hasCustomPermission('reports_export_csv');
+
   const [activeReport, setActiveReport] = useState<ReportType>('estoque_atual');
   const [data, setData] = useState<ConsolidatedReportsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -264,23 +270,27 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
             Atualizar
           </Button>
 
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportCsv}
-            leftIcon={<FileSpreadsheet className="w-4 h-4 text-emerald-600" />}
-          >
-            Exportar CSV
-          </Button>
+          {canExportCsv && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleExportCsv}
+              leftIcon={<FileSpreadsheet className="w-4 h-4 text-emerald-600" />}
+            >
+              Exportar CSV
+            </Button>
+          )}
 
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={handlePrintPdf}
-            leftIcon={<Printer className="w-4 h-4" />}
-          >
-            Imprimir / Salvar PDF
-          </Button>
+          {canExportPdf && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handlePrintPdf}
+              leftIcon={<Printer className="w-4 h-4" />}
+            >
+              Imprimir / Salvar PDF
+            </Button>
+          )}
         </div>
       </div>
 

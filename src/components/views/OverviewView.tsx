@@ -189,21 +189,25 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
               <RotateCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
 
-            <button
-              onClick={() => onNavigate('produtos')}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white text-purple-900 hover:bg-purple-50 text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4 text-purple-700" />
-              <span>Novo Produto</span>
-            </button>
+            {canAccess('produtos') && (
+              <button
+                onClick={() => onNavigate('produtos')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white text-purple-900 hover:bg-purple-50 text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4 text-purple-700" />
+                <span>Novo Produto</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => onNavigate('movimentacoes')}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer"
-            >
-              <ArrowLeftRight className="w-4 h-4" />
-              <span>Movimentar</span>
-            </button>
+            {canAccess('movimentacoes') && (
+              <button
+                onClick={() => onNavigate('movimentacoes')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                <span>Movimentar</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Zap,
   Package,
+  Boxes,
   ArrowLeftRight,
   DollarSign,
   Calculator,
@@ -48,6 +49,7 @@ const staticNavItems: NavItem[] = [
   { id: 'venda_rapida', label: 'Venda Rápida', icon: Zap, badge: 'PDV', badgeColor: 'purple' },
   { id: 'empresa', label: 'Empresa', icon: Building2 },
   { id: 'produtos', label: 'Produtos', icon: Package },
+  { id: 'estoque', label: 'Estoque', icon: Boxes },
   { id: 'movimentacoes', label: 'Movimentações', icon: ArrowLeftRight },
   { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
   { id: 'precificacao', label: 'Precificação', icon: Calculator },
@@ -76,7 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { companyName, fullName, signOut } = useAuth();
   const { summary } = useSubscription();
-  const { canAccess, currentRole, roleDefinition, isAdmin } = useRbac();
+  const { canAccess, currentRole, roleDefinition, isAdmin, currentJobTitle } = useRbac();
 
   const isAntAdmin = currentRole === 'ant_admin' || isAdmin;
   const filteredNavItems = isAntAdmin
@@ -222,7 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   : 'text-emerald-600 dark:text-emerald-400'
               }`}>
                 {isAntAdmin ? <Crown className="w-3 h-3 text-amber-500" /> : currentRole === 'owner' ? <ShieldCheck className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
-                {roleDefinition.name}
+                <span className="truncate max-w-[90px]">{currentJobTitle || roleDefinition.name}</span>
               </span>
             </div>
           </div>

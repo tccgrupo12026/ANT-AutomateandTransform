@@ -17,6 +17,9 @@ import {
   CompanyMember,
   RoleDefinition,
   ANT_ROLES,
+  CustomUserPermissions,
+  getDefaultOwnerPermissions,
+  getDefaultEmployeePermissions,
   checkSectionPermission,
 } from '../types/rbac';
 import { NavigationSection } from '../types';
@@ -36,6 +39,9 @@ interface RbacContextType {
   currentRole: UserRole;
   roleDefinition: RoleDefinition;
   members: CompanyMember[];
+  currentUserMember: CompanyMember | null;
+  currentPermissions: CustomUserPermissions;
+  currentJobTitle: string;
   isLoading: boolean;
   isOwner: boolean;
   isEmployee: boolean;
@@ -45,14 +51,24 @@ interface RbacContextType {
   effectiveCompanyName: string;
   canAccess: (section: NavigationSection) => boolean;
   hasPermission: (permission: keyof RoleDefinition['permissions']) => boolean;
+  hasCustomPermission: (key: keyof CustomUserPermissions) => boolean;
   inviteMember: (
     name: string,
     email: string,
-    role: UserRole
+    role: UserRole,
+    jobTitle?: string,
+    permissions?: CustomUserPermissions
   ) => Promise<InviteMemberResult>;
   editMember: (
     memberId: string,
-    data: { name: string; email: string; role: UserRole; status?: MemberStatus }
+    data: {
+      name: string;
+      email: string;
+      role: UserRole;
+      status?: MemberStatus;
+      job_title?: string;
+      permissions?: CustomUserPermissions;
+    }
   ) => Promise<{ success: boolean; error?: string }>;
   updateRole: (memberId: string, role: UserRole) => Promise<{ success: boolean; error?: string }>;
   removeMember: (memberId: string) => Promise<{ success: boolean; error?: string }>;
@@ -62,11 +78,15 @@ interface RbacContextType {
 }
 
 const defaultRoleDef = ANT_ROLES.owner;
+const defaultOwnerPerms = getDefaultOwnerPermissions();
 
 const RbacContext = createContext<RbacContextType>({
   currentRole: 'owner',
   roleDefinition: defaultRoleDef,
   members: [],
+  currentUserMember: null,
+  currentPermissions: defaultOwnerPerms,
+  currentJobTitle: 'Proprietário',
   isLoading: true,
   isOwner: true,
   isEmployee: false,
@@ -76,6 +96,7 @@ const RbacContext = createContext<RbacContextType>({
   effectiveCompanyName: 'Minha Empresa',
   canAccess: () => true,
   hasPermission: () => true,
+  hasCustomPermission: () => true,
   inviteMember: async () => ({ success: false, inviteLink: '', emailSent: false }),
   editMember: async () => ({ success: false }),
   updateRole: async () => ({ success: false }),
@@ -93,7 +114,10 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [effectiveCompanyName, setEffectiveCompanyName] = useState<string>(companyName || 'Minha Empresa');
   const [members, setMembers] = useState<CompanyMember[]>([]);
+  const [currentUserMember, setCurrentUserMember] = useState<CompanyMember | null>(null);
   const [currentRole, setCurrentRole] = useState<UserRole>('owner');
+  const [currentPermissions, setCurrentPermissions] = useState<CustomUserPermissions>(defaultOwnerPerms);
+  const [currentJobTitle, setCurrentJobTitle] = useState<string>('Proprietário');
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Carrega membros e define o papel ativo REAL do usuário autenticado
@@ -105,6 +129,9 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
         : 'default_company';
       let targetCompanyName = companyName || 'Minha Empresa';
       let resolvedRole: UserRole = 'owner';
+      let resolvedPermissions: CustomUserPermissions = defaultOwnerPerms;
+      let resolvedJobTitle = 'Proprietário';
+      let foundMember: CompanyMember | null = null;
 
       // 0. Verifica se o usuário autenticado possui role definida nos metadados do Supabase ou override local
       const metaRole = (user?.user_metadata?.role || (user as any)?.app_metadata?.role) as UserRole | undefined;
@@ -113,6 +140,7 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (metaRole === 'ant_admin' || storedRole === 'ant_admin') {
         resolvedRole = 'ant_admin';
         targetCompanyName = 'ANT Gestão — Plataforma SaaS';
+        resolvedJobTitle = 'Administrador Global ANT';
       } else if (storedRole && (storedRole === 'owner' || storedRole === 'employee' || storedRole === 'manager')) {
         resolvedRole = storedRole;
       }
@@ -121,15 +149,18 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (resolvedRole !== 'ant_admin' && user?.id) {
         const membership = await findMemberMembership(user.id, user.email);
         if (membership) {
+          foundMember = membership;
           targetCompanyId = membership.company_id;
           targetCompanyName = membership.company_name || targetCompanyName;
           resolvedRole = membership.role;
+          if (membership.job_title) {
+            resolvedJobTitle = membership.job_title;
+          }
+          if (membership.permissions) {
+            resolvedPermissions = membership.permissions;
+          }
         }
       }
-
-      setEffectiveCompanyId(targetCompanyId);
-      setEffectiveCompanyName(targetCompanyName);
-      setCurrentRole(resolvedRole);
 
       // 2. Carrega todos os membros da empresa
       if (resolvedRole !== 'ant_admin') {
@@ -141,21 +172,74 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         setMembers(data);
 
-        // Se encontrou o membro na lista da empresa, atualiza o papel
-        if (user?.email && !storedRole) {
-          const currentMember = data.find(
-            (m) => m.email.toLowerCase() === user.email!.toLowerCase()
+        // Se encontrou o membro na lista da empresa, atualiza o papel, cargo e permissões
+        if (user?.email) {
+          const matched = data.find(
+            (m) =>
+              (user?.id && m.user_id === user.id) ||
+              m.email.toLowerCase() === user.email!.toLowerCase()
           );
-          if (currentMember) {
-            setCurrentRole(currentMember.role);
+          if (matched) {
+            foundMember = matched;
+            if (!storedRole) {
+              resolvedRole = matched.role;
+            }
+            if (matched.job_title) {
+              resolvedJobTitle = matched.job_title;
+            }
+            if (matched.permissions && Object.keys(matched.permissions).length > 0) {
+              resolvedPermissions = matched.permissions;
+            }
           }
         }
       } else {
         setMembers([]);
       }
+
+      // 3. Define permissões finais
+      if (resolvedRole === 'owner') {
+        resolvedPermissions = getDefaultOwnerPermissions();
+        if (!resolvedJobTitle || resolvedJobTitle === 'Colaborador') {
+          resolvedJobTitle = 'Proprietário';
+        }
+      } else if (resolvedRole === 'employee') {
+        // Se as permissões estiverem vazias, tenta ler do cache local ou usa padrão operacional
+        if (!resolvedPermissions || Object.keys(resolvedPermissions).length === 0) {
+          const cached = user?.id ? localStorage.getItem(`ant_user_permissions_${user.id}`) : null;
+          if (cached) {
+            try {
+              resolvedPermissions = JSON.parse(cached);
+            } catch {
+              resolvedPermissions = getDefaultEmployeePermissions();
+            }
+          } else {
+            resolvedPermissions = getDefaultEmployeePermissions();
+          }
+        }
+        if (!resolvedJobTitle) {
+          resolvedJobTitle = 'Funcionário';
+        }
+      }
+
+      // Persiste permissões ativas no cache do usuário logado para hidratação imediata
+      if (user?.id && resolvedPermissions) {
+        try {
+          localStorage.setItem(`ant_user_permissions_${user.id}`, JSON.stringify(resolvedPermissions));
+        } catch {
+          // Ignora erro de storage
+        }
+      }
+
+      setEffectiveCompanyId(targetCompanyId);
+      setEffectiveCompanyName(targetCompanyName);
+      setCurrentRole(resolvedRole);
+      setCurrentPermissions(resolvedPermissions);
+      setCurrentJobTitle(resolvedJobTitle);
+      setCurrentUserMember(foundMember);
     } catch (err) {
       console.warn('Erro ao carregar permissões e membros:', err);
       setCurrentRole('owner');
+      setCurrentPermissions(defaultOwnerPerms);
     } finally {
       setIsLoading(false);
     }
@@ -182,9 +266,9 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const canAccess = useCallback(
     (section: NavigationSection): boolean => {
-      return checkSectionPermission(currentRole, section);
+      return checkSectionPermission(currentRole, section, currentPermissions);
     },
-    [currentRole]
+    [currentRole, currentPermissions]
   );
 
   const hasPermission = useCallback(
@@ -194,12 +278,29 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [roleDefinition]
   );
 
+  const hasCustomPermission = useCallback(
+    (key: keyof CustomUserPermissions): boolean => {
+      if (currentRole === 'owner') return true;
+      if (currentRole === 'ant_admin') return true;
+      return Boolean(currentPermissions?.[key]);
+    },
+    [currentRole, currentPermissions]
+  );
+
   const handleInviteMember = useCallback(
-    async (name: string, email: string, role: UserRole): Promise<InviteMemberResult> => {
+    async (
+      name: string,
+      email: string,
+      role: UserRole,
+      jobTitle?: string,
+      permissions?: CustomUserPermissions
+    ): Promise<InviteMemberResult> => {
       const res = await inviteCompanyMember(effectiveCompanyId, {
         name,
         email,
         role,
+        job_title: jobTitle,
+        permissions,
         companyName: effectiveCompanyName,
         inviterName: fullName,
         inviterUserId: user?.id,
@@ -215,7 +316,14 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleEditMember = useCallback(
     async (
       memberId: string,
-      data: { name: string; email: string; role: UserRole; status?: MemberStatus }
+      data: {
+        name: string;
+        email: string;
+        role: UserRole;
+        status?: MemberStatus;
+        job_title?: string;
+        permissions?: CustomUserPermissions;
+      }
     ) => {
       const res = await updateCompanyMember(effectiveCompanyId, memberId, data);
       if (res.success) {
@@ -268,6 +376,9 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentRole,
         roleDefinition,
         members,
+        currentUserMember,
+        currentPermissions,
+        currentJobTitle,
         isLoading,
         isOwner,
         isEmployee,
@@ -277,6 +388,7 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
         effectiveCompanyName,
         canAccess,
         hasPermission,
+        hasCustomPermission,
         inviteMember: handleInviteMember,
         editMember: handleEditMember,
         updateRole: handleUpdateRole,
@@ -292,3 +404,4 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useRbac = () => useContext(RbacContext);
+

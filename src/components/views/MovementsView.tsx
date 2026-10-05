@@ -24,6 +24,7 @@ import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { TableSkeleton } from '../common/Skeleton';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRbac } from '../../contexts/RbacContext';
 import { movementService } from '../../services/movementService';
 import { productService } from '../../services/productService';
 import { StockMovement, MovementFormData, MovementType, Product } from '../../types';
@@ -49,6 +50,10 @@ const INITIAL_FORM_STATE: MovementFormData = {
 
 export const MovementsView: React.FC = () => {
   const { user, companyName } = useAuth();
+  const { hasCustomPermission, isOwner } = useRbac();
+
+  const canIn = isOwner || hasCustomPermission('movements_in');
+  const canOut = isOwner || hasCustomPermission('movements_out');
 
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -318,21 +323,25 @@ export const MovementsView: React.FC = () => {
             Supabase RLS
           </Badge>
 
-          <button
-            onClick={() => handleOpenModal('entrada')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-xs shadow-emerald-200 dark:shadow-none transition-all cursor-pointer"
-          >
-            <ArrowDownLeft className="w-4 h-4" />
-            <span>Registrar Entrada</span>
-          </button>
+          {canIn && (
+            <button
+              onClick={() => handleOpenModal('entrada')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-xs shadow-emerald-200 dark:shadow-none transition-all cursor-pointer"
+            >
+              <ArrowDownLeft className="w-4 h-4" />
+              <span>Registrar Entrada</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => handleOpenModal('saida')}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs sm:text-sm font-bold shadow-xs shadow-purple-200 dark:shadow-none transition-all cursor-pointer"
-          >
-            <ArrowUpRight className="w-4 h-4" />
-            <span>Registrar Saída</span>
-          </button>
+          {canOut && (
+            <button
+              onClick={() => handleOpenModal('saida')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs sm:text-sm font-bold shadow-xs shadow-purple-200 dark:shadow-none transition-all cursor-pointer"
+            >
+              <ArrowUpRight className="w-4 h-4" />
+              <span>Registrar Saída</span>
+            </button>
+          )}
         </div>
       </div>
 

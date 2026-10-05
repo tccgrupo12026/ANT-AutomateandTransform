@@ -23,6 +23,7 @@ import { Badge } from '../common/Badge';
 import { TableSkeleton } from '../common/Skeleton';
 import { AntLogo } from '../common/AntLogo';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRbac } from '../../contexts/RbacContext';
 import { productService } from '../../services/productService';
 import { Product, ProductFormData } from '../../types';
 
@@ -50,6 +51,11 @@ const COMMON_CATEGORIES = [
 
 export const ProductsView: React.FC = () => {
   const { user, companyName } = useAuth();
+  const { hasCustomPermission, isOwner } = useRbac();
+
+  const canCreate = isOwner || hasCustomPermission('products_create');
+  const canEdit = isOwner || hasCustomPermission('products_edit');
+  const canDelete = isOwner || hasCustomPermission('products_delete');
 
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -288,13 +294,15 @@ export const ProductsView: React.FC = () => {
             Supabase RLS
           </Badge>
 
-          <button
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs sm:text-sm font-bold shadow-xs shadow-purple-200 dark:shadow-none transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Novo Produto</span>
-          </button>
+          {canCreate && (
+            <button
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs sm:text-sm font-bold shadow-xs shadow-purple-200 dark:shadow-none transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Novo Produto</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -515,22 +523,26 @@ export const ProductsView: React.FC = () => {
                       {/* Actions */}
                       <td className="py-3 px-3 text-right">
                         <div className="inline-flex items-center gap-1 justify-end">
-                          <button
-                            onClick={() => handleOpenEditModal(product)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"
-                            title="Editar Produto"
-                            aria-label={`Editar ${product.name}`}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setProductToDelete(product)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                            title="Excluir Produto"
-                            aria-label={`Excluir ${product.name}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => handleOpenEditModal(product)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors cursor-pointer"
+                              title="Editar Produto"
+                              aria-label={`Editar ${product.name}`}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => setProductToDelete(product)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                              title="Excluir Produto"
+                              aria-label={`Excluir ${product.name}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -559,20 +571,24 @@ export const ProductsView: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleOpenEditModal(product)}
-                        className="p-2 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40"
-                        title="Editar"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setProductToDelete(product)}
-                        className="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                        title="Excluir"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => handleOpenEditModal(product)}
+                          className="p-2 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 cursor-pointer"
+                          title="Editar"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => setProductToDelete(product)}
+                          className="p-2 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
 

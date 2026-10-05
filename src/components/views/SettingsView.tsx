@@ -76,8 +76,9 @@ type SettingsTab = 'todas' | 'empresa' | 'sistema' | 'financeiro' | 'estoque' | 
 export const SettingsView: React.FC = () => {
   const { user, companyName, fullName, updateUserMetadata, changePassword, signOut, signOutAllDevices } =
     useAuth();
-  const { currentRole } = useRbac();
-  const isEmployee = currentRole === 'employee';
+  const { currentRole, hasCustomPermission, isOwner } = useRbac();
+  const canEditSettings = isOwner || hasCustomPermission('settings_edit');
+  const isEmployee = currentRole === 'employee' && !canEditSettings;
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('todas');
   const [isLoading, setIsLoading] = useState<boolean>(true);

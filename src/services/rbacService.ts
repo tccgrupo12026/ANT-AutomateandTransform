@@ -9,7 +9,16 @@
  */
 
 import { getSupabaseClient, executeWithJwtRecovery } from '../lib/supabase';
-import { CompanyMember, UserRole, MemberStatus, isInviteExpired, getMemberEffectiveStatus } from '../types/rbac';
+import {
+  CompanyMember,
+  UserRole,
+  MemberStatus,
+  isInviteExpired,
+  getMemberEffectiveStatus,
+  CustomUserPermissions,
+  getDefaultOwnerPermissions,
+  getDefaultEmployeePermissions,
+} from '../types/rbac';
 import { getAppBaseUrl } from '../lib/config';
 
 const MEMBERS_CACHE_PREFIX = 'ant_company_members_';
@@ -97,6 +106,8 @@ export function createDefaultOwnerMember(
     email: user?.email || 'proprietario@ant.app',
     name: user?.name || 'Proprietário',
     role: 'owner',
+    job_title: 'Proprietário',
+    permissions: getDefaultOwnerPermissions(),
     status: 'active',
     invited_at: now,
     joined_at: now,
@@ -313,6 +324,8 @@ export async function inviteCompanyMember(
     name: string;
     email: string;
     role: UserRole;
+    job_title?: string;
+    permissions?: CustomUserPermissions;
     companyName?: string;
     inviterName?: string;
     inviterUserId?: string;
@@ -322,6 +335,10 @@ export async function inviteCompanyMember(
   const nameClean = data.name.trim();
   const companyNameClean = data.companyName?.trim() || 'Sua Empresa';
   const inviterNameClean = data.inviterName?.trim() || 'O Proprietário';
+  const jobTitleClean = data.job_title?.trim() || (data.role === 'owner' ? 'Proprietário' : 'Colaborador');
+  const initialPermissions =
+    data.permissions ||
+    (data.role === 'owner' ? getDefaultOwnerPermissions() : getDefaultEmployeePermissions());
 
   // Verifica duplicação no cache local da empresa
   const current = loadMembersFromCache(companyId) || [];
@@ -355,6 +372,8 @@ export async function inviteCompanyMember(
     name: nameClean,
     email: emailClean,
     role: data.role,
+    job_title: jobTitleClean,
+    permissions: initialPermissions,
     status: 'pending',
     invite_token: inviteToken,
     expires_at: expiresAtIso,
@@ -490,10 +509,26 @@ export async function acceptInvitation(
   const updatedMember: CompanyMember = {
     ...invitation,
     user_id: validUserId || invitation.user_id || userId,
+    job_title: invitation.job_title || (invitation.role === 'owner' ? 'Proprietário' : 'Colaborador'),
+    permissions:
+      invitation.permissions ||
+      (invitation.role === 'owner'
+        ? getDefaultOwnerPermissions()
+        : getDefaultEmployeePermissions()),
     status: 'active',
     joined_at: nowIso,
     updated_at: nowIso,
   };
+
+  const activeUserId = validUserId || userId;
+  if (activeUserId && updatedMember.permissions) {
+    try {
+      localStorage.setItem(`ant_user_permissions_${activeUserId}`, JSON.stringify(updatedMember.permissions));
+      localStorage.setItem(`ant_user_role_${activeUserId}`, updatedMember.role);
+    } catch {
+      // Ignora erro de storage
+    }
+  }
 
   const supabase = getSupabaseClient();
   if (supabase) {
@@ -529,12 +564,19 @@ export async function acceptInvitation(
 }
 
 /**
- * Edita informações completas de um colaborador (Nome, E-mail, Papel, Status).
+ * Edita informações completas de um colaborador (Nome, E-mail, Papel, Status, Cargo/Função, Permissões).
  */
 export async function updateCompanyMember(
   companyId: string,
   memberId: string,
-  data: { name: string; email: string; role: UserRole; status?: MemberStatus }
+  data: {
+    name: string;
+    email: string;
+    role: UserRole;
+    status?: MemberStatus;
+    job_title?: string;
+    permissions?: CustomUserPermissions;
+  }
 ): Promise<{ success: boolean; error?: string }> {
   const current = loadMembersFromCache(companyId) || [];
   const target = current.find((m) => m.id === memberId);
@@ -546,6 +588,16 @@ export async function updateCompanyMember(
   const emailClean = data.email.trim().toLowerCase();
   const nameClean = data.name.trim();
   const nextStatus = data.status || target.status;
+  const nextJobTitle =
+    data.job_title !== undefined
+      ? data.job_title.trim()
+      : target.job_title || (data.role === 'owner' ? 'Proprietário' : 'Colaborador');
+  const nextPermissions =
+    data.permissions !== undefined
+      ? data.permissions
+      : (data.role === 'owner'
+          ? getDefaultOwnerPermissions()
+          : target.permissions || getDefaultEmployeePermissions());
 
   if (emailClean !== target.email.toLowerCase()) {
     const duplicate = current.some(
@@ -582,6 +634,8 @@ export async function updateCompanyMember(
             email: emailClean,
             role: data.role,
             status: nextStatus,
+            job_title: nextJobTitle,
+            permissions: nextPermissions,
             updated_at: now,
           })
           .eq('id', memberId);
@@ -590,7 +644,16 @@ export async function updateCompanyMember(
       if (!error) {
         const updated = current.map((m) =>
           m.id === memberId
-            ? { ...m, name: nameClean, email: emailClean, role: data.role, status: nextStatus, updated_at: now }
+            ? {
+                ...m,
+                name: nameClean,
+                email: emailClean,
+                role: data.role,
+                status: nextStatus,
+                job_title: nextJobTitle,
+                permissions: nextPermissions,
+                updated_at: now,
+              }
             : m
         );
         saveMembersToCache(companyId, updated);
@@ -603,7 +666,16 @@ export async function updateCompanyMember(
 
   const updated = current.map((m) =>
     m.id === memberId
-      ? { ...m, name: nameClean, email: emailClean, role: data.role, status: nextStatus, updated_at: now }
+      ? {
+          ...m,
+          name: nameClean,
+          email: emailClean,
+          role: data.role,
+          status: nextStatus,
+          job_title: nextJobTitle,
+          permissions: nextPermissions,
+          updated_at: now,
+        }
       : m
   );
   saveMembersToCache(companyId, updated);

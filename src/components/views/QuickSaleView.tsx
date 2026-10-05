@@ -38,7 +38,11 @@ import { Product, Sale, PaymentMethod, SaleFormData, SaleSummaryMetrics } from '
 
 export const QuickSaleView: React.FC = () => {
   const { user, fullName, companyName } = useAuth();
-  const { effectiveCompanyId, currentRole } = useRbac();
+  const { effectiveCompanyId, currentRole, hasCustomPermission, isOwner } = useRbac();
+
+  const canExecuteSale = isOwner || hasCustomPermission('quicksale_execute');
+  const canViewHistory = isOwner || hasCustomPermission('quicksale_history');
+  const canCancelSale = isOwner || hasCustomPermission('quicksale_cancel');
 
   const [products, setProducts] = useState<Product[]>([]);
   const [salesHistory, setSalesHistory] = useState<Sale[]>([]);
@@ -771,17 +775,23 @@ export const QuickSaleView: React.FC = () => {
 
                 {/* Confirm Sale Button */}
                 <div className="space-y-2 pt-1">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="lg"
-                    isLoading={isSubmitting}
-                    disabled={!isStockSufficient || isZeroStock}
-                    className="w-full justify-center text-sm sm:text-base font-extrabold py-3.5 shadow-md"
-                    leftIcon={<Zap className="w-5 h-5" />}
-                  >
-                    Confirmar Venda • {formatBrl(totalPrice)}
-                  </Button>
+                  {canExecuteSale ? (
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="lg"
+                      isLoading={isSubmitting}
+                      disabled={!isStockSufficient || isZeroStock}
+                      className="w-full justify-center text-sm sm:text-base font-extrabold py-3.5 shadow-md"
+                      leftIcon={<Zap className="w-5 h-5" />}
+                    >
+                      Confirmar Venda • {formatBrl(totalPrice)}
+                    </Button>
+                  ) : (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-center text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      Você possui permissão apenas para consulta de vendas. O registro de novas vendas requer autorização do proprietário.
+                    </div>
+                  )}
 
                   <p className="text-[11px] text-center text-slate-400">
                     Atalho rápido: pressione <kbd className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border font-mono">F2</kbd> para confirmar ou <kbd className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border font-mono">Esc</kbd> para cancelar.
@@ -810,81 +820,83 @@ export const QuickSaleView: React.FC = () => {
       {/* ========================================================================= */}
       {/* BOTTOM SECTION: RECENT SALES OPERATIONAL HISTORY TABLE                    */}
       {/* ========================================================================= */}
-      <Card
-        id="quick-sales-history"
-        title="Histórico Operacional de Vendas Recentes"
-        description="Registro das saídas e vendas realizadas no terminal de caixa do ANT."
-        badge={<Badge variant="purple">Tempo Real</Badge>}
-      >
-        {salesHistory.length === 0 ? (
-          <div className="py-10 text-center space-y-2">
-            <Clock className="w-8 h-8 text-slate-300 mx-auto" />
-            <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
-              Nenhuma venda registrada até o momento
-            </p>
-            <p className="text-[11px] text-slate-400">
-              As vendas finalizadas aparecerão listadas aqui com data, valor e operador.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto mt-2">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] uppercase tracking-wider font-extrabold text-slate-400 bg-slate-50/50 dark:bg-slate-900/50">
-                  <th className="py-3 px-3">Data / Hora</th>
-                  <th className="py-3 px-3">Produto</th>
-                  <th className="py-3 px-3">Qtd</th>
-                  <th className="py-3 px-3">Unitário</th>
-                  <th className="py-3 px-3">Total</th>
-                  <th className="py-3 px-3">Pagamento</th>
-                  <th className="py-3 px-3">Operador</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
-                {salesHistory.slice(0, 15).map((sale) => {
-                  const saleTime = new Date(sale.sale_date).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
-                  const saleDate = new Date(sale.sale_date).toLocaleDateString('pt-BR');
+      {canViewHistory && (
+        <Card
+          id="quick-sales-history"
+          title="Histórico Operacional de Vendas Recentes"
+          description="Registro das saídas e vendas realizadas no terminal de caixa do ANT."
+          badge={<Badge variant="purple">Tempo Real</Badge>}
+        >
+          {salesHistory.length === 0 ? (
+            <div className="py-10 text-center space-y-2">
+              <Clock className="w-8 h-8 text-slate-300 mx-auto" />
+              <p className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                Nenhuma venda registrada até o momento
+              </p>
+              <p className="text-[11px] text-slate-400">
+                As vendas finalizadas aparecerão listadas aqui com data, valor e operador.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto mt-2">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] uppercase tracking-wider font-extrabold text-slate-400 bg-slate-50/50 dark:bg-slate-900/50">
+                    <th className="py-3 px-3">Data / Hora</th>
+                    <th className="py-3 px-3">Produto</th>
+                    <th className="py-3 px-3">Qtd</th>
+                    <th className="py-3 px-3">Unitário</th>
+                    <th className="py-3 px-3">Total</th>
+                    <th className="py-3 px-3">Pagamento</th>
+                    <th className="py-3 px-3">Operador</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                  {salesHistory.slice(0, 15).map((sale) => {
+                    const saleTime = new Date(sale.sale_date).toLocaleTimeString('pt-BR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    });
+                    const saleDate = new Date(sale.sale_date).toLocaleDateString('pt-BR');
 
-                  return (
-                    <tr
-                      key={sale.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
-                    >
-                      <td className="py-3 px-3 whitespace-nowrap text-slate-500 font-mono text-[11px]">
-                        {saleDate} às {saleTime}
-                      </td>
-                      <td className="py-3 px-3 font-bold text-slate-900 dark:text-slate-100">
-                        {sale.product_name}
-                      </td>
-                      <td className="py-3 px-3 font-semibold text-slate-700 dark:text-slate-300">
-                        {sale.quantity} un
-                      </td>
-                      <td className="py-3 px-3 text-slate-500 font-mono">
-                        {formatBrl(sale.unit_price)}
-                      </td>
-                      <td className="py-3 px-3 font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                        {formatBrl(sale.total_price)}
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className="capitalize font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-[10px]">
-                          {sale.payment_method.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-slate-500 flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5 text-purple-600" />
-                        <span className="truncate max-w-[120px]">{sale.user_name || 'Operador'}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                    return (
+                      <tr
+                        key={sale.id}
+                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <td className="py-3 px-3 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                          {saleDate} às {saleTime}
+                        </td>
+                        <td className="py-3 px-3 font-bold text-slate-900 dark:text-slate-100">
+                          {sale.product_name}
+                        </td>
+                        <td className="py-3 px-3 font-semibold text-slate-700 dark:text-slate-300">
+                          {sale.quantity} un
+                        </td>
+                        <td className="py-3 px-3 text-slate-500 font-mono">
+                          {formatBrl(sale.unit_price)}
+                        </td>
+                        <td className="py-3 px-3 font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatBrl(sale.total_price)}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="capitalize font-semibold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md text-[10px]">
+                            {sale.payment_method.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-slate-500 flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-purple-600" />
+                          <span className="truncate max-w-[120px]">{sale.user_name || 'Operador'}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* ========================================================================= */}
       {/* RECEIPT MODAL CONFIRMATION                                                */}
