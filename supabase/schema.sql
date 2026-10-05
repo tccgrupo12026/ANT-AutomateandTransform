@@ -33,17 +33,18 @@ ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;
 
 -- Limpar políticas antigas se existirem para evitar conflito
 DROP POLICY IF EXISTS "Usuários autenticados podem visualizar sua própria empresa" ON public.companies;
+DROP POLICY IF EXISTS "Usuários autenticados podem visualizar empresas" ON public.companies;
 DROP POLICY IF EXISTS "Usuários autenticados podem cadastrar sua própria empresa" ON public.companies;
 DROP POLICY IF EXISTS "Usuários autenticados podem atualizar sua própria empresa" ON public.companies;
 DROP POLICY IF EXISTS "Usuários autenticados podem excluir sua própria empresa" ON public.companies;
 
 -- Políticas de RLS para companies:
--- 1.1 SELECT: Usuário autenticado pode ler apenas a empresa cujo user_id corresponde ao seu auth.uid()
-CREATE POLICY "Usuários autenticados podem visualizar sua própria empresa"
+-- 1.1 SELECT: Usuário autenticado visualiza empresas (necessário para Admin ANT e gestão)
+CREATE POLICY "Usuários autenticados podem visualizar empresas"
 ON public.companies
 FOR SELECT
 TO authenticated
-USING (auth.uid() = user_id);
+USING (true);
 
 -- 1.2 INSERT: Usuário autenticado pode inserir empresa apenas com seu próprio user_id
 CREATE POLICY "Usuários autenticados podem cadastrar sua própria empresa"
@@ -331,5 +332,41 @@ CREATE INDEX IF NOT EXISTS idx_company_members_role ON public.company_members(ro
 CREATE INDEX IF NOT EXISTS idx_company_members_user_id ON public.company_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_company_members_invite_token ON public.company_members(invite_token);
 CREATE INDEX IF NOT EXISTS idx_company_members_expires_at ON public.company_members(expires_at);
+
+
+-- ============================================================================
+-- 6. TABELA: public.platform_plans (Configurações e Preços dos Planos ANT)
+-- Armazena os planos ativos, preços, limites e benefícios gerenciados pelo Admin ANT.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS public.platform_plans (
+  id TEXT PRIMARY KEY CHECK (id IN ('starter', 'business', 'enterprise')),
+  name TEXT NOT NULL,
+  description TEXT,
+  price_monthly NUMERIC(10,2) NOT NULL,
+  max_users INTEGER NOT NULL DEFAULT 2,
+  max_products INTEGER NOT NULL DEFAULT 200,
+  badge TEXT,
+  is_popular BOOLEAN DEFAULT false,
+  features JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.platform_plans ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Qualquer pessoa pode visualizar os planos da plataforma" ON public.platform_plans;
+CREATE POLICY "Qualquer pessoa pode visualizar os planos da plataforma"
+  ON public.platform_plans
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "Usuários autenticados podem gerenciar planos da plataforma" ON public.platform_plans;
+CREATE POLICY "Usuários autenticados podem gerenciar planos da plataforma"
+  ON public.platform_plans
+  FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
 
 

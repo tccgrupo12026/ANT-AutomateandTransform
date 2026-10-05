@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Crown,
   Check,
@@ -24,7 +24,9 @@ import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
 import { AntLogo } from '../common/AntLogo';
 import { useSubscription } from '../../contexts/SubscriptionContext';
-import { ANT_PLANS, PlanId, SubscriptionStatus, BillingCycle } from '../../types';
+import { getActivePlans } from '../../services/subscriptionService';
+import { loadPlatformPlans } from '../../services/adminService';
+import { PlanId, SubscriptionStatus, BillingCycle, PlanDetails, ANT_PLANS } from '../../types';
 
 export const PlansView: React.FC = () => {
   const {
@@ -38,6 +40,36 @@ export const PlansView: React.FC = () => {
     resetTrial,
   } = useSubscription();
 
+  const [plans, setPlans] = useState<Record<PlanId, PlanDetails>>(getActivePlans());
+
+  useEffect(() => {
+    let isMounted = true;
+    const init = async () => {
+      try {
+        await loadPlatformPlans();
+        if (isMounted) {
+          setPlans(getActivePlans());
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar planos remotos:', err);
+      }
+    };
+    init();
+
+    const handlePlansUpdated = () => {
+      if (isMounted) {
+        setPlans(getActivePlans());
+      }
+    };
+    window.addEventListener('ant_plans_updated', handlePlansUpdated);
+    window.addEventListener('storage', handlePlansUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('ant_plans_updated', handlePlansUpdated);
+      window.removeEventListener('storage', handlePlansUpdated);
+    };
+  }, []);
+
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [selectedCycle, setSelectedCycle] = useState<BillingCycle>('monthly');
 
@@ -50,12 +82,12 @@ export const PlansView: React.FC = () => {
 
   const handleSelectPlan = async (planId: PlanId) => {
     if (subscription?.plan_id === planId) {
-      showFeedback(`Você já está no plano ${ANT_PLANS[planId].name}.`, 'success');
+      showFeedback(`Você já está no plano ${plans[planId].name}.`, 'success');
       return;
     }
     const success = await changePlan(planId);
     if (success) {
-      showFeedback(`Plano alterado com sucesso para ${ANT_PLANS[planId].name}!`, 'success');
+      showFeedback(`Plano alterado com sucesso para ${plans[planId].name}!`, 'success');
     } else {
       showFeedback('Não foi possível alterar o plano. Tente novamente.', 'error');
     }
@@ -64,7 +96,7 @@ export const PlansView: React.FC = () => {
   const handleActivateSubscription = async (planId: PlanId) => {
     const success = await activateSubscription(planId, selectedCycle);
     if (success) {
-      showFeedback(`Assinatura ativada com sucesso no plano ${ANT_PLANS[planId].name}!`, 'success');
+      showFeedback(`Assinatura ativada com sucesso no plano ${plans[planId].name}!`, 'success');
     } else {
       showFeedback('Não foi possível ativar a assinatura. Tente novamente.', 'error');
     }

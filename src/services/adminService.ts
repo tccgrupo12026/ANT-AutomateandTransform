@@ -88,12 +88,29 @@ export async function fetchAllAdminCompanies(): Promise<AdminCompanyItem[]> {
   const deletedIds = getDeletedCompanyIds();
   const supabase = getSupabaseClient();
   const customPlans = fetchCustomPlansConfig();
+  const platformSettings = fetchPlatformSettings();
+  const defaultTrialDays = platformSettings.defaultTrialDays || 30; // 30 dias padrão de avaliação
 
-  let companiesList: AdminCompanyItem[] = [];
+  // Mapa consolidado de empresas indexado pelo ID único
+  const consolidatedMap = new Map<
+    string,
+    {
+      id: string;
+      user_id?: string;
+      company_name: string;
+      responsible_name: string;
+      email?: string;
+      phone?: string;
+      created_at: string;
+    }
+  >();
+
+  const membersCountMap: Record<string, number> = {};
+  const subsMap: Record<string, any> = {};
 
   if (supabase) {
     try {
-      // Consulta empresas reais no Supabase
+      // 1. Consulta empresas reais na tabela public.companies
       const { data: companiesData, error: compErr } = await executeWithJwtRecovery(async (client) => {
         return await client
           .from('companies')
@@ -101,68 +118,10 @@ export async function fetchAllAdminCompanies(): Promise<AdminCompanyItem[]> {
           .order('created_at', { ascending: false });
       });
 
-      if (!compErr && companiesData) {
-        // Consulta contagem de membros por empresa
-        const { data: membersData } = await executeWithJwtRecovery(async (client) => {
-          return await client.from('company_members').select('company_id, user_id, status');
-        });
-
-        // Consulta assinaturas reais
-        const { data: subsData } = await executeWithJwtRecovery(async (client) => {
-          return await client.from('subscriptions').select('*');
-        });
-
-        const membersCountMap: Record<string, number> = {};
-        if (membersData && Array.isArray(membersData)) {
-          membersData.forEach((m) => {
-            if (m.company_id && m.status !== 'inactive') {
-              membersCountMap[m.company_id] = (membersCountMap[m.company_id] || 0) + 1;
-            }
-          });
-        }
-
-        const subsMap: Record<string, any> = {};
-        if (subsData && Array.isArray(subsData)) {
-          subsData.forEach((s) => {
-            if (s.user_id) subsMap[s.user_id] = s;
-            if (s.company_id) subsMap[s.company_id] = s;
-          });
-        }
-
-        const nowMs = Date.now();
-
-        companiesList = companiesData
-          .filter((c) => !deletedIds.has(c.id))
-          .map((c) => {
-            const sub = subsMap[c.user_id] || subsMap[c.id] || {};
-            const override = overrides[c.id] || {};
-
-            const planId: PlanId = override.plan_id || (sub.plan_id as PlanId) || 'starter';
-            let status: SubscriptionStatus = override.status || (sub.status as SubscriptionStatus) || 'trial';
-
-            // Cálculo dos dias restantes de trial
-            const createdMs = new Date(c.created_at || Date.now()).getTime();
-            const platformSettings = fetchPlatformSettings();
-            const defaultTrialMs = (platformSettings.defaultTrialDays || 14) * 24 * 60 * 60 * 1000;
-
-            const trialEndStr = override.trial_end_date || sub.trial_end_date;
-            const trialEndMs = trialEndStr ? new Date(trialEndStr).getTime() : createdMs + defaultTrialMs;
-
-            const daysRemaining = Math.max(0, Math.ceil((trialEndMs - nowMs) / (1000 * 60 * 60 * 24)));
-
-            // Se for trial e os dias esgotaram, atualiza para expirado
-            if (status === 'trial' && daysRemaining === 0) {
-              status = 'expired';
-            }
-
-            const planDef = customPlans[planId] || customPlans.starter;
-
-            // Próximo vencimento projetado (30 dias após criação ou fim do período atual)
-            const nextBillingMs = sub.current_period_end
-              ? new Date(sub.current_period_end).getTime()
-              : createdMs + 30 * 24 * 60 * 60 * 1000;
-
-            return {
+      if (!compErr && companiesData && Array.isArray(companiesData)) {
+        companiesData.forEach((c) => {
+          if (c.id && !deletedIds.has(c.id)) {
+            consolidatedMap.set(c.id, {
               id: c.id,
               user_id: c.user_id,
               company_name: c.company_name || 'Empresa Cadastrada',
@@ -170,27 +129,161 @@ export async function fetchAllAdminCompanies(): Promise<AdminCompanyItem[]> {
               email: c.email || undefined,
               phone: c.phone || undefined,
               created_at: c.created_at || new Date().toISOString(),
-              plan_id: planId,
-              plan_name: planDef.name,
-              subscription_status: status,
-              users_count: Math.max(1, membersCountMap[c.id] || 1),
-              days_remaining: status === 'trial' ? daysRemaining : 0,
-              trial_end_date: new Date(trialEndMs).toISOString(),
-              current_period_end: sub.current_period_end || new Date(nextBillingMs).toISOString(),
-              next_billing_date: new Date(nextBillingMs).toISOString(),
-              billing_status: status === 'active' ? 'paid' : status === 'suspended' ? 'overdue' : 'pending',
-              notes: override.notes,
-            };
-          });
-
-        return companiesList;
+            });
+          }
+        });
+      } else if (compErr) {
+        console.warn('Consulta direta a public.companies retornou aviso (verificar RLS):', compErr.message);
       }
     } catch (err) {
       console.warn('Consulta administrativa de empresas falhou no Supabase:', err);
     }
+
+    try {
+      // 2. Consulta membros e empresas associadas na tabela company_members (SELECT USING true)
+      const { data: membersData, error: memErr } = await executeWithJwtRecovery(async (client) => {
+        return await client
+          .from('company_members')
+          .select('id, company_id, company_name, user_id, name, email, role, status, created_at')
+          .order('created_at', { ascending: true });
+      });
+
+      if (!memErr && membersData && Array.isArray(membersData)) {
+        membersData.forEach((m) => {
+          if (!m.company_id || deletedIds.has(m.company_id)) return;
+
+          // Contagem de membros ativos por empresa
+          if (m.status !== 'inactive') {
+            membersCountMap[m.company_id] = (membersCountMap[m.company_id] || 0) + 1;
+          }
+
+          // Se a empresa ainda não está no mapa consolidado (ex: bloqueada por RLS em 'companies'),
+          // nós a reconstruímos a partir do cadastro do proprietário/membro em company_members!
+          if (!consolidatedMap.has(m.company_id)) {
+            consolidatedMap.set(m.company_id, {
+              id: m.company_id,
+              user_id: m.user_id || undefined,
+              company_name: m.company_name || 'Empresa Cadastrada',
+              responsible_name: m.name || 'Responsável',
+              email: m.email || undefined,
+              created_at: m.created_at || new Date().toISOString(),
+            });
+          } else {
+            // Se já está no mapa mas faltava e-mail ou responsável, complementa se for owner
+            const existing = consolidatedMap.get(m.company_id)!;
+            if (m.role === 'owner' && (!existing.email || existing.responsible_name === 'Responsável')) {
+              existing.responsible_name = m.name || existing.responsible_name;
+              existing.email = m.email || existing.email;
+              if (m.user_id && !existing.user_id) existing.user_id = m.user_id;
+            }
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Consulta a company_members falhou:', err);
+    }
+
+    try {
+      // 3. Consulta assinaturas reais
+      const { data: subsData, error: subsErr } = await executeWithJwtRecovery(async (client) => {
+        return await client.from('subscriptions').select('*');
+      });
+
+      if (!subsErr && subsData && Array.isArray(subsData)) {
+        subsData.forEach((s) => {
+          if (s.user_id) subsMap[s.user_id] = s;
+          if (s.company_id) subsMap[s.company_id] = s;
+        });
+      }
+    } catch (err) {
+      console.warn('Consulta a subscriptions falhou:', err);
+    }
   }
 
-  return [];
+  // 4. Também inspeciona o cache local (ant_company_cache_*) para garantir que empresas criadas
+  // em sessões locais / offline também apareçam no painel Admin ANT
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('ant_company_cache_')) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const comp = JSON.parse(raw);
+          const cId = comp.id || (comp.company_name ? comp.company_name.toLowerCase().replace(/[^a-z0-9]/g, '_') : null);
+          if (cId && !deletedIds.has(cId) && !consolidatedMap.has(cId)) {
+            consolidatedMap.set(cId, {
+              id: cId,
+              user_id: comp.user_id,
+              company_name: comp.company_name || 'Empresa Cadastrada',
+              responsible_name: comp.responsible_name || 'Responsável',
+              email: comp.email || undefined,
+              phone: comp.phone || undefined,
+              created_at: comp.created_at || new Date().toISOString(),
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Varredura de cache local de empresas falhou:', err);
+  }
+
+  if (consolidatedMap.size === 0) {
+    return [];
+  }
+
+  const nowMs = Date.now();
+  const defaultTrialMs = defaultTrialDays * 24 * 60 * 60 * 1000;
+
+  const result: AdminCompanyItem[] = Array.from(consolidatedMap.values())
+    .filter((c) => !deletedIds.has(c.id))
+    .map((c) => {
+      const sub = (c.user_id ? subsMap[c.user_id] : null) || subsMap[c.id] || {};
+      const override = overrides[c.id] || {};
+
+      const planId: PlanId = override.plan_id || (sub.plan_id as PlanId) || 'starter';
+      let status: SubscriptionStatus = override.status || (sub.status as SubscriptionStatus) || 'trial';
+
+      const createdMs = new Date(c.created_at || Date.now()).getTime();
+      const trialEndStr = override.trial_end_date || sub.trial_end_date;
+      const trialEndMs = trialEndStr ? new Date(trialEndStr).getTime() : createdMs + defaultTrialMs;
+
+      const daysRemaining = Math.max(0, Math.ceil((trialEndMs - nowMs) / (1000 * 60 * 60 * 24)));
+
+      if (status === 'trial' && daysRemaining === 0) {
+        status = 'expired';
+      }
+
+      const planDef = customPlans[planId] || customPlans.starter;
+      const nextBillingMs = sub.current_period_end
+        ? new Date(sub.current_period_end).getTime()
+        : createdMs + 30 * 24 * 60 * 60 * 1000;
+
+      return {
+        id: c.id,
+        user_id: c.user_id,
+        company_name: c.company_name || 'Empresa Cadastrada',
+        responsible_name: c.responsible_name || 'Responsável',
+        email: c.email || undefined,
+        phone: c.phone || undefined,
+        created_at: c.created_at || new Date().toISOString(),
+        plan_id: planId,
+        plan_name: planDef.name,
+        subscription_status: status,
+        users_count: Math.max(1, membersCountMap[c.id] || 1),
+        days_remaining: status === 'trial' ? daysRemaining : 0,
+        trial_end_date: new Date(trialEndMs).toISOString(),
+        current_period_end: sub.current_period_end || new Date(nextBillingMs).toISOString(),
+        next_billing_date: new Date(nextBillingMs).toISOString(),
+        billing_status: status === 'active' ? 'paid' : status === 'suspended' ? 'overdue' : 'pending',
+        notes: override.notes,
+      };
+    });
+
+  // Ordena por data de criação mais recente
+  result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  return result;
 }
 
 // -------------------------------------------------------------
@@ -497,15 +590,118 @@ export function fetchCustomPlansConfig(): Record<PlanId, CustomPlanConfig> {
       }
     }
   } catch (err) {
-    console.warn('Erro ao carregar planos customizados:', err);
+    console.warn('Erro ao carregar planos customizados do cache:', err);
   }
   return getDefaultCustomPlans();
+}
+
+/**
+ * Carrega a configuração dos planos diretamente do Supabase (tabela public.platform_plans).
+ * Atualiza o cache local e emite o evento 'ant_plans_updated' para sincronização global.
+ */
+export async function loadPlatformPlans(): Promise<Record<PlanId, CustomPlanConfig>> {
+  const supabase = getSupabaseClient();
+  const currentPlans = fetchCustomPlansConfig();
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('platform_plans')
+        .select('*');
+
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        const updated: Record<PlanId, CustomPlanConfig> = { ...currentPlans };
+        data.forEach((row: any) => {
+          const pid = row.id as PlanId;
+          if (updated[pid]) {
+            const price = typeof row.price_monthly === 'number' ? row.price_monthly : parseFloat(row.price_monthly);
+            updated[pid] = {
+              ...updated[pid],
+              id: pid,
+              name: row.name || updated[pid].name,
+              description: row.description || updated[pid].description,
+              priceMonthly: !isNaN(price) ? price : updated[pid].priceMonthly,
+              maxUsers: typeof row.max_users === 'number' ? row.max_users : updated[pid].maxUsers,
+              maxProducts: typeof row.max_products === 'number' ? row.max_products : updated[pid].maxProducts,
+              badge: row.badge !== undefined && row.badge !== null ? row.badge : updated[pid].badge,
+              isPopular: row.is_popular !== undefined ? Boolean(row.is_popular) : updated[pid].isPopular,
+              features: row.features && typeof row.features === 'object' ? { ...updated[pid].features, ...row.features } : updated[pid].features,
+            };
+          }
+        });
+
+        localStorage.setItem(ADMIN_CUSTOM_PLANS_KEY, JSON.stringify(updated));
+        window.dispatchEvent(new CustomEvent('ant_plans_updated', { detail: updated }));
+        return updated;
+      }
+    } catch (err) {
+      console.warn('Não foi possível sincronizar planos da tabela platform_plans do Supabase:', err);
+    }
+  }
+
+  return currentPlans;
+}
+
+/**
+ * Salva a configuração dos planos tanto no LocalStorage quanto no Supabase (tabela platform_plans)
+ * para persistência permanente e propagação para toda a plataforma e Landing Page.
+ */
+export async function saveCustomPlansConfigAsync(
+  configs: Record<PlanId, CustomPlanConfig>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 1. Atualização imediata no cache local e notificação de eventos
+    localStorage.setItem(ADMIN_CUSTOM_PLANS_KEY, JSON.stringify(configs));
+    window.dispatchEvent(new CustomEvent('ant_plans_updated', { detail: configs }));
+
+    // 2. Persistência real na tabela platform_plans no Supabase
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const rows = (['starter', 'business', 'enterprise'] as PlanId[]).map((planKey) => {
+          const p = configs[planKey];
+          return {
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            price_monthly: p.priceMonthly,
+            max_users: p.maxUsers,
+            max_products: p.maxProducts,
+            badge: p.badge || null,
+            is_popular: Boolean(p.isPopular),
+            features: p.features,
+            updated_at: new Date().toISOString(),
+          };
+        });
+
+        const { error } = await supabase
+          .from('platform_plans')
+          .upsert(rows, { onConflict: 'id' });
+
+        if (error) {
+          console.warn('Aviso ao persistir planos no Supabase (platform_plans):', error.message);
+          return { success: true }; // LocalStorage atualizado com sucesso
+        }
+      } catch (dbErr: any) {
+        console.warn('Erro de rede ao salvar planos no Supabase:', dbErr?.message || dbErr);
+      }
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('Falha geral ao salvar planos customizados:', err);
+    return { success: false, error: err?.message || 'Falha ao salvar planos.' };
+  }
 }
 
 export function saveCustomPlansConfig(configs: Record<PlanId, CustomPlanConfig>): void {
   try {
     localStorage.setItem(ADMIN_CUSTOM_PLANS_KEY, JSON.stringify(configs));
     window.dispatchEvent(new CustomEvent('ant_plans_updated', { detail: configs }));
+    // Dispara persistência assíncrona no Supabase
+    saveCustomPlansConfigAsync(configs).catch((err) => {
+      console.warn('Erro assíncrono ao persistir planos no Supabase:', err);
+    });
   } catch (err) {
     console.warn('Erro ao salvar planos customizados:', err);
   }

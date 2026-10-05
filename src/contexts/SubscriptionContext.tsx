@@ -72,6 +72,17 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   useEffect(() => {
     loadSubscription();
+
+    const handlePlansUpdated = () => {
+      loadSubscription();
+    };
+
+    window.addEventListener('ant_plans_updated', handlePlansUpdated);
+    window.addEventListener('storage', handlePlansUpdated);
+    return () => {
+      window.removeEventListener('ant_plans_updated', handlePlansUpdated);
+      window.removeEventListener('storage', handlePlansUpdated);
+    };
   }, [loadSubscription]);
 
   const changePlan = async (planId: PlanId): Promise<boolean> => {

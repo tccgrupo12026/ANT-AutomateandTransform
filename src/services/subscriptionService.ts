@@ -14,11 +14,135 @@ import {
   PlanId,
   SubscriptionStatus,
   BillingCycle,
+  PlanDetails,
   ANT_PLANS,
 } from '../types';
+import { fetchCustomPlansConfig } from './adminService';
 
 const SUBSCRIPTION_CACHE_PREFIX = 'ant_subscription_cache_';
 const DEFAULT_TRIAL_DAYS = 30;
+
+/**
+ * Retorna os planos ativos na plataforma, refletindo imediatamente
+ * qualquer alteração de preços, limites ou recursos realizada pelo Admin ANT.
+ */
+export function getActivePlans(): Record<PlanId, PlanDetails> {
+  const custom = fetchCustomPlansConfig();
+
+  // 1. Benefícios dinâmicos Starter
+  const starterUsersText =
+    custom.starter.maxUsers >= 999
+      ? 'Usuários ilimitados'
+      : `Até ${custom.starter.maxUsers} ${custom.starter.maxUsers === 1 ? 'usuário' : 'usuários'} com acesso`;
+  const starterProductsText =
+    custom.starter.maxProducts >= 99999
+      ? 'Catálogo com produtos ilimitados'
+      : `Até ${custom.starter.maxProducts.toLocaleString('pt-BR')} produtos no catálogo`;
+
+  const starterFeatures: string[] = [
+    '1 empresa cadastrada',
+    starterUsersText,
+    starterProductsText,
+    '30 dias de teste grátis (sem cartão)',
+  ];
+  if (custom.starter.features.canManageStock) starterFeatures.push('Controle e conferência de estoque');
+  if (custom.starter.features.canManageMovements) starterFeatures.push('Registro de entradas e saídas de mercadorias');
+  if (custom.starter.features.canAccessPricing) starterFeatures.push('Cálculo de margens e precificação de venda');
+  if (custom.starter.features.canAccessFinancial) starterFeatures.push('Módulo financeiro com contas e fluxo de caixa');
+  if (custom.starter.features.canAccessBusinessHealth) starterFeatures.push('Diagnóstico de Saúde do Negócio');
+  if (custom.starter.features.canAccessCharts) starterFeatures.push('Gráficos operacionais de vendas');
+  if (custom.starter.features.canAccessReports) starterFeatures.push('Exportação de relatórios em CSV e PDF');
+  if (custom.starter.features.canManageUsers) starterFeatures.push('Gestão de equipe com links seguros');
+
+  // 2. Benefícios dinâmicos Business
+  const businessUsersText =
+    custom.business.maxUsers >= 999
+      ? 'Usuários ilimitados'
+      : `Até ${custom.business.maxUsers} usuários com acesso`;
+  const businessProductsText =
+    custom.business.maxProducts >= 99999
+      ? 'Catálogo com produtos ilimitados'
+      : `Até ${custom.business.maxProducts.toLocaleString('pt-BR')} produtos no catálogo`;
+
+  const businessFeatures: string[] = [
+    '1 empresa cadastrada',
+    businessUsersText,
+    businessProductsText,
+    '30 dias de teste grátis (sem cartão)',
+  ];
+  if (custom.business.features.canAccessFinancial) businessFeatures.push('Financeiro completo com categorias e DRE');
+  if (custom.business.features.canAccessBusinessHealth) businessFeatures.push('Diagnóstico de Saúde do Negócio (Score 0-100)');
+  if (custom.business.features.canManageStock) businessFeatures.push('Alertas preventivos de estoque mínimo');
+  if (custom.business.features.canManageMovements) businessFeatures.push('Histórico consolidado de movimentações');
+  if (custom.business.features.canAccessPricing) businessFeatures.push('Simulador inteligente de mark-up e margens');
+  if (custom.business.features.canAccessCharts) businessFeatures.push('Gráficos analíticos de faturamento');
+  if (custom.business.features.canAccessReports) businessFeatures.push('Exportação completa de relatórios gerenciais');
+  if (custom.business.features.canManageUsers) businessFeatures.push('Gestão de equipe e colaboradores com links seguros');
+  businessFeatures.push('Suporte prioritário via e-mail');
+
+  // 3. Benefícios dinâmicos Enterprise
+  const enterpriseUsersText =
+    custom.enterprise.maxUsers >= 999
+      ? 'Usuários ilimitados'
+      : `Até ${custom.enterprise.maxUsers} usuários com acesso`;
+  const enterpriseProductsText =
+    custom.enterprise.maxProducts >= 99999
+      ? 'Produtos ilimitados no catálogo'
+      : `Até ${custom.enterprise.maxProducts.toLocaleString('pt-BR')} produtos no catálogo`;
+
+  const enterpriseFeatures: string[] = [
+    'Empresas ilimitadas',
+    enterpriseUsersText,
+    enterpriseProductsText,
+    '30 dias de teste grátis (sem cartão)',
+    'Módulo financeiro executivo e relatórios consolidados',
+    'Diagnóstico de sustentabilidade e lucratividade',
+    'Histórico permanente sem restrição de volume',
+    'Gestão multiusuário completa com perfis personalizados',
+    'Atendimento e consultoria de implantação dedicada',
+    'Acesso antecipado a novos módulos da plataforma',
+  ];
+
+  return {
+    starter: {
+      ...ANT_PLANS.starter,
+      name: custom.starter.name || 'Starter',
+      badge: custom.starter.badge || ANT_PLANS.starter.badge,
+      tagline: custom.starter.description || ANT_PLANS.starter.tagline,
+      priceMonthly: custom.starter.priceMonthly,
+      priceFormatted: `R$ ${custom.starter.priceMonthly.toFixed(2).replace('.', ',')}`,
+      maxUsers: custom.starter.maxUsers >= 999 ? 'unlimited' : custom.starter.maxUsers,
+      maxProducts: custom.starter.maxProducts >= 99999 ? 'unlimited' : custom.starter.maxProducts,
+      hasCompleteFinancial: Boolean(custom.starter.features.canAccessFinancial),
+      features: starterFeatures,
+    },
+    business: {
+      ...ANT_PLANS.business,
+      name: custom.business.name || 'Business',
+      badge: custom.business.badge || 'Mais Escolhido',
+      tagline: custom.business.description || ANT_PLANS.business.tagline,
+      priceMonthly: custom.business.priceMonthly,
+      priceFormatted: `R$ ${custom.business.priceMonthly.toFixed(2).replace('.', ',')}`,
+      maxUsers: custom.business.maxUsers >= 999 ? 'unlimited' : custom.business.maxUsers,
+      maxProducts: custom.business.maxProducts >= 99999 ? 'unlimited' : custom.business.maxProducts,
+      hasCompleteFinancial: Boolean(custom.business.features.canAccessFinancial),
+      features: businessFeatures,
+    },
+    enterprise: {
+      ...ANT_PLANS.enterprise,
+      name: custom.enterprise.name || 'Enterprise',
+      badge: custom.enterprise.badge || 'Ilimitado',
+      tagline: custom.enterprise.description || ANT_PLANS.enterprise.tagline,
+      priceMonthly: custom.enterprise.priceMonthly,
+      priceFormatted: `R$ ${custom.enterprise.priceMonthly.toFixed(2).replace('.', ',')}`,
+      maxUsers: custom.enterprise.maxUsers >= 999 ? 'unlimited' : custom.enterprise.maxUsers,
+      maxProducts: custom.enterprise.maxProducts >= 99999 ? 'unlimited' : custom.enterprise.maxProducts,
+      hasCompleteFinancial: true,
+      hasAdvancedFeatures: true,
+      features: enterpriseFeatures,
+    },
+  };
+}
 
 /**
  * Cria uma assinatura padrão de 30 dias grátis (Trial) para o usuário.
@@ -66,7 +190,8 @@ export function buildSubscriptionSummary(subscription: UserSubscription): Subscr
     status: effectiveStatus,
   };
 
-  const plan = ANT_PLANS[subscription.plan_id] || ANT_PLANS.starter;
+  const plans = getActivePlans();
+  const plan = plans[subscription.plan_id] || plans.starter;
 
   const formatDate = (dateStr: string) => {
     try {

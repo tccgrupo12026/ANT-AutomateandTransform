@@ -4,6 +4,7 @@ import { HeroSection } from './HeroSection';
 import { BenefitsSection } from './BenefitsSection';
 import { HowItWorksSection } from './HowItWorksSection';
 import { DifferentialsSection } from './DifferentialsSection';
+import { PlansSection } from './PlansSection';
 import { CtaSection } from './CtaSection';
 import { LandingFooter } from './LandingFooter';
 
@@ -41,7 +42,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         {/* 4. Diferenciais ANT */}
         <DifferentialsSection />
 
-        {/* 5. Chamada Final (CTA) */}
+        {/* 5. Planos e Preços */}
+        <PlansSection onSignUpClick={onSignUpClick} />
+
+        {/* 6. Chamada Final (CTA) */}
         <CtaSection
           onLoginClick={onLoginClick}
           onSignUpClick={onSignUpClick}

@@ -72,6 +72,13 @@ export const LandingHeader: React.FC<LandingHeaderProps> = ({
           >
             Diferenciais
           </button>
+          <button
+            type="button"
+            onClick={() => scrollToSection('planos')}
+            className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+          >
+            Planos
+          </button>
         </nav>
 
         {/* Desktop Action CTAs */}
@@ -140,6 +147,13 @@ export const LandingHeader: React.FC<LandingHeaderProps> = ({
               className="text-left text-sm font-semibold text-slate-700 dark:text-slate-200 py-1"
             >
               Diferenciais
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection('planos')}
+              className="text-left text-sm font-semibold text-slate-700 dark:text-slate-200 py-1"
+            >
+              Planos
             </button>
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2.5">
               <button

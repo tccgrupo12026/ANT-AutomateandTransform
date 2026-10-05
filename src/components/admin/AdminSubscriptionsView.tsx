@@ -27,7 +27,9 @@ import {
 import {
   calculateAdminMetrics,
   fetchCustomPlansConfig,
+  loadPlatformPlans,
   saveCustomPlansConfig,
+  saveCustomPlansConfigAsync,
   resetCustomPlansConfig,
   fetchBillingHistory,
 } from '../../services/adminService';
@@ -50,14 +52,15 @@ export const AdminSubscriptionsView: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [resMetrics, history] = await Promise.all([
+      const [resMetrics, history, remotePlans] = await Promise.all([
         calculateAdminMetrics(),
         fetchBillingHistory(),
+        loadPlatformPlans(),
       ]);
       setMetrics(resMetrics.metrics);
       setOverview(resMetrics.overview);
       setBillingHistory(history);
-      setPlansConfig(fetchCustomPlansConfig());
+      setPlansConfig(remotePlans || fetchCustomPlansConfig());
     } catch (err) {
       console.warn('Erro ao carregar dados:', err);
     } finally {
@@ -132,12 +135,16 @@ export const AdminSubscriptionsView: React.FC = () => {
   };
 
   // Salvar configurações de planos
-  const handleSavePlans = () => {
+  const handleSavePlans = async () => {
     setIsSaving(true);
     try {
-      saveCustomPlansConfig(plansConfig);
-      showToast('Configurações dos planos salvas com sucesso! As alterações já estão ativas.');
-      loadData();
+      const res = await saveCustomPlansConfigAsync(plansConfig);
+      if (res.success) {
+        showToast('Configurações dos planos salvas e sincronizadas com o banco de dados com sucesso!');
+      } else {
+        showToast('Configurações salvas no cache local. Aviso: ' + (res.error || 'Aguardando sincronização.'), 'error');
+      }
+      await loadData();
     } catch {
       showToast('Erro ao salvar configurações.', 'error');
     } finally {
@@ -146,12 +153,18 @@ export const AdminSubscriptionsView: React.FC = () => {
   };
 
   // Restaurar padrões
-  const handleResetPlans = () => {
+  const handleResetPlans = async () => {
     if (confirm('Deseja restaurar os preços, limites e recursos padrões de fábrica dos planos?')) {
-      const restored = resetCustomPlansConfig();
-      setPlansConfig(restored);
-      showToast('Planos restaurados para o padrão de fábrica.');
-      loadData();
+      setIsSaving(true);
+      try {
+        const restored = resetCustomPlansConfig();
+        setPlansConfig(restored);
+        await saveCustomPlansConfigAsync(restored);
+        showToast('Planos restaurados para o padrão de fábrica e salvos no banco.');
+        await loadData();
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
