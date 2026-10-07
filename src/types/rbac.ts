@@ -67,6 +67,10 @@ export interface CustomUserPermissions {
   // Precificação e Gráficos
   pricing_view?: boolean;
   charts_view?: boolean;
+
+  // Suporte & Chamados
+  support_view?: boolean;
+  support_create?: boolean;
 }
 
 /**
@@ -101,6 +105,8 @@ export function getDefaultOwnerPermissions(): CustomUserPermissions {
     settings_edit: true,
     pricing_view: true,
     charts_view: true,
+    support_view: true,
+    support_create: true,
   };
 }
 
@@ -136,6 +142,8 @@ export function getDefaultEmployeePermissions(): CustomUserPermissions {
     settings_edit: false,
     pricing_view: false,
     charts_view: false,
+    support_view: true,
+    support_create: true,
   };
 }
 
@@ -171,6 +179,8 @@ export function getEmptyPermissions(): CustomUserPermissions {
     settings_edit: false,
     pricing_view: false,
     charts_view: false,
+    support_view: false,
+    support_create: false,
   };
 }
 
@@ -273,6 +283,15 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { key: 'settings_view', label: 'Visualizar configurações' },
       { key: 'settings_edit', label: 'Editar configurações' },
+    ],
+  },
+  {
+    id: 'suporte',
+    title: 'Suporte',
+    iconName: 'LifeBuoy',
+    permissions: [
+      { key: 'support_view', label: 'Visualizar chamados' },
+      { key: 'support_create', label: 'Abrir chamados' },
     ],
   },
 ];
@@ -500,7 +519,8 @@ export function checkSectionPermission(
       section === 'planos' ||
       section === 'configuracoes' ||
       section === 'empresa' ||
-      section === 'inicio'
+      section === 'inicio' ||
+      section === 'suporte'
     ) {
       return true;
     }
@@ -563,6 +583,8 @@ export function checkSectionPermission(
         perms.charts_view &&
           (perms.financial_view || perms.quick_sale_view || perms.products_view)
       );
+    case 'suporte':
+      return Boolean(perms.support_view);
     default:
       return false;
   }

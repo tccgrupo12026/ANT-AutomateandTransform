@@ -24,6 +24,7 @@ export type NavigationSection =
   | 'empresa'
   | 'usuarios'
   | 'planos'
+  | 'suporte'
   | 'configuracoes'
   | 'perfil'
   | 'admin_dashboard'
@@ -36,6 +37,7 @@ export type NavigationSection =
 export * from './subscription';
 export * from './rbac';
 export * from './admin';
+export * from './support';
 
 export type PaymentMethod = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro';
 

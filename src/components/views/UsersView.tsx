@@ -38,6 +38,7 @@ import {
   FileText,
   Activity,
   Settings,
+  LifeBuoy,
 } from 'lucide-react';
 import { useRbac } from '../../contexts/RbacContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -94,6 +95,8 @@ const getGroupIcon = (groupId: string) => {
       return <Users className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />;
     case 'configuracoes':
       return <Settings className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />;
+    case 'suporte':
+      return <LifeBuoy className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />;
     default:
       return <Shield className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />;
   }
@@ -117,7 +120,7 @@ const PermissionCheckboxesEditor: React.FC<PermissionEditorProps> = ({
         <div>
           <span className="text-xs font-bold text-purple-950 dark:text-purple-200 flex items-center gap-1.5">
             <Sliders className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
-            Permissões Personalizadas ({activeCount}/24 ativas)
+            Permissões Personalizadas ({activeCount} ativas)
           </span>
           <p className="text-[11px] text-purple-800/80 dark:text-purple-300/80">
             Marque os módulos, telas e ações operacionais que este colaborador poderá acessar.

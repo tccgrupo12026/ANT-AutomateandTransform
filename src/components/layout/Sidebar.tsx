@@ -28,6 +28,7 @@ import { NavigationSection } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSubscription } from '../../contexts/SubscriptionContext';
 import { useRbac } from '../../contexts/RbacContext';
+import { supportService } from '../../services/supportService';
 
 interface SidebarProps {
   currentSection: NavigationSection;
@@ -58,6 +59,7 @@ const staticNavItems: NavItem[] = [
   { id: 'relatorios', label: 'Relatórios', icon: FileText },
   { id: 'usuarios', label: 'Usuários', icon: Users },
   { id: 'planos', label: 'Planos & Assinatura', icon: Crown },
+  { id: 'suporte', label: 'Suporte', icon: LifeBuoy },
   { id: 'configuracoes', label: 'Configurações', icon: Settings },
 ];
 
@@ -78,9 +80,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { companyName, fullName, signOut } = useAuth();
   const { summary } = useSubscription();
-  const { canAccess, currentRole, roleDefinition, isAdmin, currentJobTitle } = useRbac();
+  const { canAccess, currentRole, roleDefinition, isAdmin, currentJobTitle, effectiveCompanyId } = useRbac();
+
+  const [supportUnreadCount, setSupportUnreadCount] = React.useState<number>(0);
+  const [supportOpenCount, setSupportOpenCount] = React.useState<number>(0);
 
   const isAntAdmin = currentRole === 'ant_admin' || isAdmin;
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchSupportInfo = async () => {
+      try {
+        if (isAntAdmin) {
+          const tickets = await supportService.getAllTicketsForAdmin();
+          if (isMounted) {
+            const unread = tickets.filter((t) => t.has_unread_admin_response || t.status === 'Aberto').length;
+            setSupportUnreadCount(unread);
+          }
+        } else {
+          const effectiveId = effectiveCompanyId || 'default';
+          const tickets = await supportService.getTicketsByCompany(effectiveId);
+          if (isMounted) {
+            const unread = tickets.filter((t) => t.has_unread_client_response).length;
+            const open = tickets.filter((t) => t.status === 'Aberto' || t.status === 'Em Análise').length;
+            setSupportUnreadCount(unread);
+            setSupportOpenCount(open);
+          }
+        }
+      } catch {
+        // Ignora silenciosamente
+      }
+    };
+    fetchSupportInfo();
+    const interval = setInterval(fetchSupportInfo, 20000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [isAntAdmin, effectiveCompanyId]);
+
   const filteredNavItems = isAntAdmin
     ? adminNavItems
     : staticNavItems.filter((item) => canAccess(item.id));
@@ -154,8 +192,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentSection === item.id;
-            const badge = item.id === 'planos' ? planBadgeText : item.badge;
-            const badgeColor = item.id === 'planos' ? planBadgeColor : item.badgeColor;
+            const isSupportItem = item.id === 'suporte' || item.id === 'admin_support';
+            const badge =
+              item.id === 'planos'
+                ? planBadgeText
+                : isSupportItem
+                ? supportUnreadCount > 0
+                  ? isAntAdmin ? `${supportUnreadCount} nova` : 'Nova!'
+                  : supportOpenCount > 0
+                  ? `${supportOpenCount}`
+                  : item.badge
+                : item.badge;
+
+            const badgeColor =
+              item.id === 'planos'
+                ? planBadgeColor
+                : isSupportItem && supportUnreadCount > 0
+                ? 'rose'
+                : isSupportItem && supportOpenCount > 0
+                ? 'purple'
+                : item.badgeColor;
 
             return (
               <button

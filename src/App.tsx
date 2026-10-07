@@ -42,6 +42,7 @@ import { AdminUsersView } from './components/admin/AdminUsersView';
 import { AdminSubscriptionsView } from './components/admin/AdminSubscriptionsView';
 import { AdminPlatformView } from './components/admin/AdminPlatformView';
 import { AdminSupportView } from './components/admin/AdminSupportView';
+import { SupportView } from './components/views/SupportView';
 
 /**
  * Extrai token de convite e detecta se a URL atual é uma rota de aceite de convite.
@@ -309,6 +310,8 @@ function AppContent() {
         return <CompanyView />;
       case 'planos':
         return currentRole === 'ant_admin' ? <AdminSubscriptionsView /> : <PlansView />;
+      case 'suporte':
+        return currentRole === 'ant_admin' ? <AdminSupportView /> : <SupportView onNavigate={setCurrentSection} />;
       case 'configuracoes':
         return currentRole === 'ant_admin' ? <AdminPlatformView /> : <SettingsView />;
       default:
