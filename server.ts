@@ -85,6 +85,44 @@ app.post('/api/send-invite', async (req, res) => {
   }
 });
 
+// Endpoint Oficial para Webhooks do Mercado Pago (Fase 3)
+// Suporta: payment.created, payment.updated, subscription.created, subscription.updated
+app.post('/api/webhooks/mercadopago', async (req, res) => {
+  const event = req.body || {};
+  const query = req.query || {};
+
+  const eventType =
+    event.type ||
+    query.type ||
+    event.action ||
+    query.action ||
+    (event.data ? 'payment.updated' : 'notification');
+
+  const dataId =
+    event.data?.id ||
+    query['data.id'] ||
+    query.id ||
+    event.id ||
+    '';
+
+  console.log(`[Mercado Pago Webhook] Recebido evento: ${eventType}, ID: ${dataId}`);
+
+  // Responder 200 OK imediatamente para o gateway do Mercado Pago não reenviar
+  res.status(200).json({
+    received: true,
+    eventType,
+    dataId,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/api/webhooks/mercadopago', (_req, res) => {
+  res.status(200).json({
+    status: 'online',
+    message: 'ANT Webhooks Gateway Mercado Pago ativo e operacional.',
+  });
+});
+
 async function startServer() {
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static('dist'));

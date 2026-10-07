@@ -18,6 +18,8 @@ import {
   Zap,
   HelpCircle,
   TrendingUp,
+  Receipt,
+  CreditCard,
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
@@ -27,6 +29,9 @@ import { useSubscription } from '../../contexts/SubscriptionContext';
 import { getActivePlans } from '../../services/subscriptionService';
 import { loadPlatformPlans } from '../../services/adminService';
 import { PlanId, SubscriptionStatus, BillingCycle, PlanDetails, ANT_PLANS } from '../../types';
+import { CompanySubscriptionView } from './CompanySubscriptionView';
+import { PaymentHistoryView } from './PaymentHistoryView';
+import { MercadoPagoCheckoutModal } from '../subscription/MercadoPagoCheckoutModal';
 
 export const PlansView: React.FC = () => {
   const {
@@ -40,7 +45,10 @@ export const PlansView: React.FC = () => {
     resetTrial,
   } = useSubscription();
 
+  const [activeTab, setActiveTab] = useState<'subscription' | 'plans' | 'payments'>('subscription');
   const [plans, setPlans] = useState<Record<PlanId, PlanDetails>>(getActivePlans());
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState<boolean>(false);
+  const [selectedPlanForCheckout, setSelectedPlanForCheckout] = useState<PlanDetails | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -219,8 +227,68 @@ export const PlansView: React.FC = () => {
         </div>
       </div>
 
-      {/* Current Subscription Card Summary */}
-      <Card id="current-subscription-summary-card" accent="purple">
+      {/* Navegação por Abas (Assinatura da Empresa, Planos, Histórico de Pagamentos) */}
+      <div className="flex flex-wrap items-center p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700 w-fit gap-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('subscription')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'subscription'
+              ? 'bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+          }`}
+        >
+          <Crown className="w-4 h-4" />
+          <span>Assinatura da Empresa</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('plans')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'plans'
+              ? 'bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Comparativo de Planos</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('payments')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            activeTab === 'payments'
+              ? 'bg-white dark:bg-slate-900 text-purple-700 dark:text-purple-300 shadow-xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+          }`}
+        >
+          <Receipt className="w-4 h-4" />
+          <span>Histórico de Pagamentos</span>
+        </button>
+      </div>
+
+      {/* Conteúdo da Aba 1: Assinatura da Empresa */}
+      {activeTab === 'subscription' && (
+        <CompanySubscriptionView
+          onChangePlanClick={() => setActiveTab('plans')}
+          onOpenPaymentsHistory={() => setActiveTab('payments')}
+        />
+      )}
+
+      {/* Conteúdo da Aba 3: Histórico de Pagamentos */}
+      {activeTab === 'payments' && (
+        <PaymentHistoryView
+          onBackToSubscription={() => setActiveTab('subscription')}
+        />
+      )}
+
+      {/* Conteúdo da Aba 2: Comparativo de Planos */}
+      {activeTab === 'plans' && (
+        <div className="space-y-8 animate-fadeIn">
+          {/* Current Subscription Card Summary */}
+          <Card id="current-subscription-summary-card" accent="purple">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
           
           <div className="md:col-span-4 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-4 md:pb-0 md:pr-6">
@@ -714,6 +782,26 @@ export const PlansView: React.FC = () => {
           </button>
         </div>
       </Card>
+      </div>
+      )}
+
+      {/* Modal de Checkout Mercado Pago */}
+      {isCheckoutOpen && selectedPlanForCheckout && (
+        <MercadoPagoCheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={() => {
+            setIsCheckoutOpen(false);
+            setSelectedPlanForCheckout(null);
+          }}
+          selectedPlan={selectedPlanForCheckout}
+          initialCycle={selectedCycle}
+          onSuccess={() => {
+            setIsCheckoutOpen(false);
+            setSelectedPlanForCheckout(null);
+            showFeedback('Pagamento processado com sucesso!', 'success');
+          }}
+        />
+      )}
     </div>
   );
 };

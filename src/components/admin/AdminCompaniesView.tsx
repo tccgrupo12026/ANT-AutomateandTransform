@@ -21,11 +21,13 @@ import {
   ShieldCheck,
   ChevronRight,
   ExternalLink,
+  RotateCcw,
 } from 'lucide-react';
 import {
   fetchAllAdminCompanies,
   updateAdminCompanySubscription,
   extendCompanyTrial,
+  renewCompanySubscription,
   suspendCompany,
   reactivateCompany,
   deleteCompanyPermanently,
@@ -45,6 +47,7 @@ export const AdminCompaniesView: React.FC = () => {
   const [selectedCompany, setSelectedCompany] = useState<AdminCompanyItem | null>(null);
   const [isManageModalOpen, setIsManageModalOpen] = useState<boolean>(false);
   const [isExtendModalOpen, setIsExtendModalOpen] = useState<boolean>(false);
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState<boolean>(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -82,7 +85,13 @@ export const AdminCompaniesView: React.FC = () => {
         c.responsible_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (c.email && c.email.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const matchesStatus = statusFilter === 'all' || c.subscription_status === statusFilter;
+      let matchesStatus = statusFilter === 'all';
+      if (statusFilter === 'overdue') {
+        matchesStatus = c.subscription_status === 'overdue' || c.subscription_status === 'pending_payment';
+      } else if (statusFilter !== 'all') {
+        matchesStatus = c.subscription_status === statusFilter;
+      }
+
       const matchesPlan = planFilter === 'all' || c.plan_id === planFilter;
 
       return matchesSearch && matchesStatus && matchesPlan;
@@ -103,10 +112,49 @@ export const AdminCompaniesView: React.FC = () => {
     setIsExtendModalOpen(true);
   };
 
+  const handleOpenRenewModal = (comp: AdminCompanyItem) => {
+    setSelectedCompany(comp);
+    setIsRenewModalOpen(true);
+  };
+
   const handleOpenDeleteModal = (comp: AdminCompanyItem) => {
     setSelectedCompany(comp);
     setDeleteConfirmationInput('');
     setIsDeleteModalOpen(true);
+  };
+
+  // Ativação rápida da empresa (1 clique)
+  const handleQuickActivate = async (comp: AdminCompanyItem) => {
+    setIsProcessing(true);
+    try {
+      const res = await reactivateCompany(comp.id);
+      if (res.success) {
+        showToast(`Empresa "${comp.company_name}" ativada com sucesso!`);
+        await loadCompanies();
+      } else {
+        showToast(res.error || 'Erro ao ativar empresa.', 'error');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Renovação de assinatura comercial (+30 ou +365 dias)
+  const handleRenewSubscription = async (days: number) => {
+    if (!selectedCompany) return;
+    setIsProcessing(true);
+    try {
+      const res = await renewCompanySubscription(selectedCompany.id, days, selectedCompany.plan_id);
+      if (res.success) {
+        showToast(`Assinatura de "${selectedCompany.company_name}" renovada com sucesso por +${days} dias!`);
+        setIsRenewModalOpen(false);
+        await loadCompanies();
+      } else {
+        showToast(res.error || 'Erro ao renovar assinatura.', 'error');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // 1. Salvar Alteração de Status & Plano
@@ -217,6 +265,7 @@ export const AdminCompaniesView: React.FC = () => {
   // Métricas de contagem rápida
   const activeCount = companies.filter((c) => c.subscription_status === 'active').length;
   const trialCount = companies.filter((c) => c.subscription_status === 'trial').length;
+  const overdueCount = companies.filter((c) => c.subscription_status === 'overdue' || c.subscription_status === 'pending_payment').length;
   const suspendedCount = companies.filter((c) => c.subscription_status === 'suspended').length;
   const expiredCount = companies.filter((c) => c.subscription_status === 'expired').length;
 
@@ -266,71 +315,117 @@ export const AdminCompaniesView: React.FC = () => {
         </button>
       </div>
 
-      {/* Cards de Métricas de Empresas */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      {/* Cards de Métricas de Empresas (Fase 3: 5 status comerciais + total) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        {/* Total */}
         <button
-          onClick={() => setStatusFilter(statusFilter === 'all' ? 'all' : 'all')}
-          className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs text-left cursor-pointer hover:border-purple-300 transition-all"
+          onClick={() => setStatusFilter('all')}
+          className={`p-3.5 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-xs text-left cursor-pointer transition-all ${
+            statusFilter === 'all'
+              ? 'border-purple-600 ring-2 ring-purple-600/20'
+              : 'border-slate-200/80 dark:border-slate-800 hover:border-purple-300'
+          }`}
         >
-          <div className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Empresas</div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 mt-1">
+          <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Total</div>
+          <div className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 mt-0.5">
             {companies.length}
           </div>
-          <p className="text-[11px] text-slate-500 mt-0.5">Cadastradas na base</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">Cadastradas</p>
         </button>
 
+        {/* Ativas */}
         <button
           onClick={() => setStatusFilter(statusFilter === 'active' ? 'all' : 'active')}
-          className={`p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-xs text-left cursor-pointer transition-all ${
+          className={`p-3.5 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-xs text-left cursor-pointer transition-all ${
             statusFilter === 'active'
               ? 'border-emerald-500 ring-2 ring-emerald-500/20'
               : 'border-slate-200/80 dark:border-slate-800 hover:border-emerald-300'
           }`}
         >
-          <div className="text-emerald-600 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+          <div className="text-emerald-600 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span>Ativas</span>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+          <div className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
             {activeCount}
           </div>
-          <p className="text-[11px] text-slate-500 mt-0.5">Em operação regular</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">Em dia</p>
         </button>
 
+        {/* Em Trial */}
         <button
           onClick={() => setStatusFilter(statusFilter === 'trial' ? 'all' : 'trial')}
-          className={`p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-xs text-left cursor-pointer transition-all ${
+          className={`p-3.5 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-xs text-left cursor-pointer transition-all ${
             statusFilter === 'trial'
               ? 'border-purple-500 ring-2 ring-purple-500/20'
               : 'border-slate-200/80 dark:border-slate-800 hover:border-purple-300'
           }`}
         >
-          <div className="text-purple-600 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+          <div className="text-purple-600 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-purple-500" />
             <span>Em Trial</span>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-purple-700 dark:text-purple-300 mt-1">
+          <div className="text-2xl font-extrabold text-purple-700 dark:text-purple-300 mt-0.5">
             {trialCount}
           </div>
-          <p className="text-[11px] text-slate-500 mt-0.5">Período de avaliação</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">30 dias grátis</p>
         </button>
 
+        {/* Inadimplentes (Overdue / Pending) */}
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'overdue' ? 'all' : 'overdue')}
+          className={`p-3.5 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-xs text-left cursor-pointer transition-all ${
+            statusFilter === 'overdue'
+              ? 'border-rose-500 ring-2 ring-rose-500/20'
+              : 'border-slate-200/80 dark:border-slate-800 hover:border-rose-300'
+          }`}
+        >
+          <div className="text-rose-600 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+            <span>Inadimplentes</span>
+          </div>
+          <div className="text-2xl font-extrabold text-rose-600 dark:text-rose-400 mt-0.5">
+            {overdueCount}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-0.5">Vencidas/Pend.</p>
+        </button>
+
+        {/* Suspensas */}
         <button
           onClick={() => setStatusFilter(statusFilter === 'suspended' ? 'all' : 'suspended')}
-          className={`p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-xs text-left cursor-pointer transition-all ${
+          className={`p-3.5 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-xs text-left cursor-pointer transition-all ${
             statusFilter === 'suspended'
               ? 'border-amber-500 ring-2 ring-amber-500/20'
               : 'border-slate-200/80 dark:border-slate-800 hover:border-amber-300'
           }`}
         >
-          <div className="text-amber-600 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+          <div className="text-amber-600 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-amber-500" />
             <span>Suspensas</span>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
+          <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-0.5">
             {suspendedCount}
           </div>
-          <p className="text-[11px] text-slate-500 mt-0.5">Bloqueio administrativo</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">Bloqueadas</p>
+        </button>
+
+        {/* Expiradas */}
+        <button
+          onClick={() => setStatusFilter(statusFilter === 'expired' ? 'all' : 'expired')}
+          className={`p-3.5 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl border shadow-xs text-left cursor-pointer transition-all ${
+            statusFilter === 'expired'
+              ? 'border-slate-500 ring-2 ring-slate-500/20'
+              : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-400'
+          }`}
+        >
+          <div className="text-slate-500 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            <span>Expiradas</span>
+          </div>
+          <div className="text-2xl font-extrabold text-slate-700 dark:text-slate-300 mt-0.5">
+            {expiredCount}
+          </div>
+          <p className="text-[10px] text-slate-500 mt-0.5">Prazo esgotado</p>
         </button>
       </div>
 
@@ -355,8 +450,9 @@ export const AdminCompaniesView: React.FC = () => {
             className="text-xs font-bold px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300 focus:outline-hidden cursor-pointer"
           >
             <option value="all">Todos os Status</option>
-            <option value="active">Ativas</option>
+            <option value="active">Ativas (Em dia)</option>
             <option value="trial">Em Trial</option>
+            <option value="overdue">Inadimplentes (Vencidas / Pendentes)</option>
             <option value="suspended">Suspensas</option>
             <option value="expired">Expiradas</option>
             <option value="canceled">Canceladas</option>
@@ -510,18 +606,40 @@ export const AdminCompaniesView: React.FC = () => {
                       {/* Ações Administrativas */}
                       <td className="py-3.5 px-4 sm:px-6 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Botão Renovar Trial */}
+                          {/* 1. Ativar Empresa (se não estiver ativa) */}
+                          {c.subscription_status !== 'active' && (
+                            <button
+                              onClick={() => handleQuickActivate(c)}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 transition-colors cursor-pointer flex items-center gap-1"
+                              title="Ativar Empresa Imediatamente (Acesso Total)"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Ativar</span>
+                            </button>
+                          )}
+
+                          {/* 2. Renovar Assinatura */}
+                          <button
+                            onClick={() => handleOpenRenewModal(c)}
+                            className="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 transition-colors cursor-pointer flex items-center gap-1"
+                            title="Renovar Assinatura (+30 ou +365 dias)"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Renovar</span>
+                          </button>
+
+                          {/* 3. Botão Renovar Trial (se estiver em trial) */}
                           {c.subscription_status === 'trial' && (
                             <button
                               onClick={() => handleOpenExtendModal(c)}
-                              className="px-2.5 py-1 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800 transition-colors cursor-pointer"
+                              className="px-2 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
                               title="Prorrogar período de Trial (+7, +15 ou +30 dias)"
                             >
                               + Trial
                             </button>
                           )}
 
-                          {/* Botão Suspender / Reativar */}
+                          {/* 4. Botão Suspender / Reativar */}
                           <button
                             onClick={() => handleToggleSuspend(c)}
                             className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
@@ -538,16 +656,16 @@ export const AdminCompaniesView: React.FC = () => {
                             )}
                           </button>
 
-                          {/* Botão Gerenciar Status/Plano */}
+                          {/* 5. Botão Gerenciar Status/Plano Manualmente */}
                           <button
                             onClick={() => handleOpenManageModal(c)}
                             className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-purple-600 transition-colors cursor-pointer"
-                            title="Alterar Status e Plano"
+                            title="Alterar Plano e Status Manualmente"
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Botão Excluir */}
+                          {/* 6. Botão Excluir */}
                           <button
                             onClick={() => handleOpenDeleteModal(c)}
                             className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
@@ -602,6 +720,8 @@ export const AdminCompaniesView: React.FC = () => {
                 >
                   <option value="active">Ativo (Acesso Liberado)</option>
                   <option value="trial">Trial (Período de Avaliação)</option>
+                  <option value="pending_payment">Aguardando Pagamento</option>
+                  <option value="overdue">Inadimplente (Pagamento Vencido)</option>
                   <option value="suspended">Suspenso (Bloqueio Administrativo)</option>
                   <option value="expired">Expirado (Assinatura Vencida)</option>
                   <option value="canceled">Cancelado (Encerramento de Conta)</option>
@@ -724,6 +844,81 @@ export const AdminCompaniesView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsExtendModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL: Renovar Assinatura Comercial */}
+      {/* ------------------------------------------------------------- */}
+      {isRenewModalOpen && selectedCompany && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5 animate-scaleUp">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                  <RotateCcw className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Renovar Assinatura</h3>
+                  <p className="text-xs text-slate-500">{selectedCompany.company_name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsRenewModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+              Defina o período de renovação comercial para{' '}
+              <strong>{selectedCompany.company_name}</strong>. A assinatura será imediatamente marcada como{' '}
+              <strong>Ativa</strong> e as datas de vigência serão atualizadas.
+            </p>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              <button
+                type="button"
+                onClick={() => handleRenewSubscription(30)}
+                disabled={isProcessing}
+                className="p-3.5 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 font-bold text-center cursor-pointer transition-all disabled:opacity-50"
+              >
+                <div className="text-base">+30</div>
+                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase">Dias</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRenewSubscription(90)}
+                disabled={isProcessing}
+                className="p-3.5 rounded-2xl border border-emerald-300 dark:border-emerald-700 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 text-emerald-900 dark:text-emerald-100 font-bold text-center cursor-pointer transition-all disabled:opacity-50"
+              >
+                <div className="text-base">+90</div>
+                <div className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase">Trimestral</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRenewSubscription(365)}
+                disabled={isProcessing}
+                className="p-3.5 rounded-2xl border border-emerald-400 dark:border-emerald-600 bg-emerald-200/80 dark:bg-emerald-800/40 hover:bg-emerald-300 dark:hover:bg-emerald-700/60 text-emerald-950 dark:text-white font-bold text-center cursor-pointer transition-all disabled:opacity-50"
+              >
+                <div className="text-base">+365</div>
+                <div className="text-[10px] text-emerald-700 dark:text-emerald-300 uppercase">Anual</div>
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsRenewModalOpen(false)}
                 className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 cursor-pointer"
               >
                 Fechar

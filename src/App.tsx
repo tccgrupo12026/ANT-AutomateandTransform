@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { SubscriptionProvider } from './contexts/SubscriptionContext';
+import { SubscriptionProvider, useSubscription } from './contexts/SubscriptionContext';
 import { RbacProvider, useRbac } from './contexts/RbacContext';
 import { AuthView } from './components/auth/AuthView';
 import { AcceptInviteView } from './components/auth/AcceptInviteView';
@@ -17,6 +17,7 @@ import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { AntLogo } from './components/common/AntLogo';
 import { SubscriptionBanner } from './components/subscription/SubscriptionBanner';
+import { SubscriptionBlockedView } from './components/subscription/SubscriptionBlockedView';
 import { NavigationSection } from './types';
 
 import { OverviewView } from './components/views/OverviewView';
@@ -145,6 +146,7 @@ function extractInviteFromUrl(): { isInviteRoute: boolean; token: string | null 
 function AppContent() {
   const { user, isLoading: authLoading } = useAuth();
   const { canAccess, refreshMembers, currentRole, isAdmin, isLoading: rbacLoading } = useRbac();
+  const { isBlocked } = useSubscription();
   const [currentSection, setCurrentSection] = useState<NavigationSection>(() => {
     return currentRole === 'ant_admin' ? 'admin_dashboard' : 'inicio';
   });
@@ -264,6 +266,13 @@ function AppContent() {
     if (!canAccess(currentSection)) {
       const fallbackHome: NavigationSection = currentRole === 'ant_admin' ? 'admin_dashboard' : 'inicio';
       return <AccessDeniedView onNavigateHome={() => setCurrentSection(fallbackHome)} />;
+    }
+
+    // Bloqueio Automático Centralizado da Fase 3 & 4 (Trial expirado, overdue, suspended, expired)
+    // Bloqueia módulos operacionais e redireciona/exibe SubscriptionBlockedView.
+    // Permite apenas 'planos' e 'suporte'. Admin ANT mantém acesso irrestrito total.
+    if (!isAntAdmin && isBlocked && currentSection !== 'planos' && currentSection !== 'suporte') {
+      return <SubscriptionBlockedView onNavigate={setCurrentSection} />;
     }
 
     switch (currentSection) {

@@ -193,7 +193,8 @@ export function buildSubscriptionSummary(subscription: UserSubscription): Subscr
   const plans = getActivePlans();
   const plan = plans[subscription.plan_id] || plans.starter;
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '—';
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return dateStr;
@@ -207,16 +208,32 @@ export function buildSubscriptionSummary(subscription: UserSubscription): Subscr
     }
   };
 
+  const isBlocked =
+    effectiveStatus === 'expired' ||
+    effectiveStatus === 'overdue' ||
+    effectiveStatus === 'suspended' ||
+    effectiveStatus === 'canceled';
+
   return {
     subscription: effectiveSubscription,
     plan,
     daysRemaining,
     isTrial: effectiveStatus === 'trial',
     isActive: effectiveStatus === 'active',
+    isPendingPayment: effectiveStatus === 'pending_payment',
+    isOverdue: effectiveStatus === 'overdue',
     isExpired: effectiveStatus === 'expired',
     isSuspended: effectiveStatus === 'suspended',
-    formattedExpirationDate: formatDate(subscription.status === 'trial' ? subscription.trial_end_date : subscription.current_period_end),
+    isCanceled: effectiveStatus === 'canceled',
+    isBlocked,
+    formattedExpirationDate: formatDate(
+      subscription.status === 'trial' ? subscription.trial_end_date : subscription.current_period_end
+    ),
     formattedStartDate: formatDate(subscription.start_date),
+    formattedNextBillingDate: formatDate(
+      subscription.next_billing_date || subscription.current_period_end
+    ),
+    formattedLastPaymentDate: formatDate(subscription.last_payment_date),
   };
 }
 
@@ -457,5 +474,50 @@ export const subscriptionService = {
   async resetTrial(userId: string): Promise<{ data: UserSubscription | null; error: string | null }> {
     const defaultSub = createDefaultTrialSubscription(userId);
     return await this.updateStatus(userId, 'trial');
+  },
+
+  /**
+   * Atualiza campos arbitrários da assinatura (datas de vigência, status, pagamento, etc.)
+   */
+  async updateSubscriptionDetails(
+    userId: string,
+    partial: Partial<UserSubscription>
+  ): Promise<{ data: UserSubscription | null; error: string | null }> {
+    if (!userId) {
+      return { data: null, error: 'Identificador do usuário não informado.' };
+    }
+
+    const { data: current } = await this.getSubscription(userId);
+    const updated: UserSubscription = {
+      ...(current || createDefaultTrialSubscription(userId)),
+      ...partial,
+      updated_at: new Date().toISOString(),
+    };
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await executeWithJwtRecovery(async (client) => {
+          return await client
+            .from('subscriptions')
+            .upsert(updated, { onConflict: 'user_id' })
+            .select()
+            .single();
+        });
+
+        if (!error && data) {
+          const saved = data as UserSubscription;
+          localStorage.setItem(`${SUBSCRIPTION_CACHE_PREFIX}${userId}`, JSON.stringify(saved));
+          window.dispatchEvent(new Event('ant_plans_updated'));
+          return { data: saved, error: null };
+        }
+      } catch (err: any) {
+        console.warn('Erro ao atualizar detalhes da assinatura no Supabase:', err?.message || err);
+      }
+    }
+
+    localStorage.setItem(`${SUBSCRIPTION_CACHE_PREFIX}${userId}`, JSON.stringify(updated));
+    window.dispatchEvent(new Event('ant_plans_updated'));
+    return { data: updated, error: null };
   },
 };

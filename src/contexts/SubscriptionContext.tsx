@@ -27,6 +27,7 @@ interface SubscriptionContextType {
   summary: SubscriptionSummary | null;
   isLoading: boolean;
   isSaving: boolean;
+  isBlocked: boolean;
   refreshSubscription: () => Promise<void>;
   changePlan: (planId: PlanId) => Promise<boolean>;
   activateSubscription: (planId: PlanId, cycle?: BillingCycle) => Promise<boolean>;
@@ -171,6 +172,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
         summary,
         isLoading,
         isSaving,
+        isBlocked: Boolean(summary?.isBlocked),
         refreshSubscription: loadSubscription,
         changePlan,
         activateSubscription,

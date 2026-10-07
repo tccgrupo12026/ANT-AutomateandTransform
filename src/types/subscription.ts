@@ -5,9 +5,20 @@
 
 export type PlanId = 'starter' | 'business' | 'enterprise';
 
-export type SubscriptionStatus = 'trial' | 'active' | 'expired' | 'suspended' | 'canceled';
+export type SubscriptionStatus =
+  | 'trial'
+  | 'active'
+  | 'pending_payment'
+  | 'overdue'
+  | 'suspended'
+  | 'expired'
+  | 'canceled';
 
 export type BillingCycle = 'monthly' | 'yearly';
+
+export type PaymentMethodType = 'pix' | 'credit_card' | 'boleto';
+
+export type PaymentStatus = 'pago' | 'pendente' | 'vencido' | 'cancelado';
 
 export interface PlanFeature {
   text: string;
@@ -43,6 +54,12 @@ export interface UserSubscription {
   trial_end_date: string;
   current_period_start: string;
   current_period_end: string;
+  next_billing_date?: string;
+  last_payment_date?: string;
+  last_payment_amount?: number;
+  last_payment_method?: PaymentMethodType | string;
+  mp_subscription_id?: string;
+  mp_customer_id?: string;
   canceled_at?: string | null;
   created_at?: string;
   updated_at?: string;
@@ -54,10 +71,49 @@ export interface SubscriptionSummary {
   daysRemaining: number;
   isTrial: boolean;
   isActive: boolean;
+  isPendingPayment: boolean;
+  isOverdue: boolean;
   isExpired: boolean;
   isSuspended: boolean;
+  isCanceled: boolean;
+  isBlocked: boolean; // Flag centralizada para bloqueio automático de módulos operacionais
   formattedExpirationDate: string;
   formattedStartDate: string;
+  formattedNextBillingDate: string;
+  formattedLastPaymentDate: string;
+}
+
+export interface SubscriptionPayment {
+  id: string;
+  subscription_id?: string;
+  user_id: string;
+  company_id: string;
+  company_name?: string;
+  amount: number;
+  payment_method: PaymentMethodType;
+  status: PaymentStatus;
+  mp_payment_id?: string;
+  mp_preference_id?: string;
+  mp_status?: string;
+  paid_at?: string;
+  due_date: string;
+  pix_copy_paste?: string;
+  boleto_barcode?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MercadoPagoCheckoutDTO {
+  planId: PlanId;
+  billingCycle: BillingCycle;
+  paymentMethod: PaymentMethodType;
+  cardData?: {
+    cardNumber: string;
+    cardholderName: string;
+    cardExpiration: string;
+    securityCode: string;
+    installments?: number;
+  };
 }
 
 export const ANT_PLANS: Record<PlanId, PlanDetails> = {

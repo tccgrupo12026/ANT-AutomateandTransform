@@ -38,6 +38,8 @@ interface CompanyOverride {
   status?: SubscriptionStatus;
   plan_id?: PlanId;
   trial_end_date?: string;
+  current_period_end?: string;
+  next_billing_date?: string;
   notes?: string;
 }
 
@@ -376,6 +378,51 @@ export async function extendCompanyTrial(
     return { success: true, newEndDate: newEndIso };
   } catch (err: any) {
     return { success: false, error: err.message || 'Erro ao renovar trial.' };
+  }
+}
+
+export async function renewCompanySubscription(
+  companyId: string,
+  extraDays: number = 30,
+  planId?: PlanId
+): Promise<{ success: boolean; newEndDate?: string; error?: string }> {
+  try {
+    const currentOverrides = getStatusOverrides();
+    const existingEnd = currentOverrides[companyId]?.current_period_end;
+    const baseDate = existingEnd && new Date(existingEnd) > new Date() ? new Date(existingEnd) : new Date();
+    const newEnd = new Date(baseDate.getTime() + extraDays * 24 * 60 * 60 * 1000);
+    const newEndIso = newEnd.toISOString();
+
+    saveStatusOverride(companyId, {
+      status: 'active',
+      current_period_end: newEndIso,
+      next_billing_date: newEndIso,
+      ...(planId ? { plan_id: planId } : {}),
+    });
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        await executeWithJwtRecovery(async (client) => {
+          return await client
+            .from('subscriptions')
+            .update({
+              status: 'active',
+              current_period_end: newEndIso,
+              next_billing_date: newEndIso,
+              ...(planId ? { plan_id: planId } : {}),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('company_id', companyId);
+        });
+      } catch {
+        // Fallback local
+      }
+    }
+
+    return { success: true, newEndDate: newEndIso };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Erro ao renovar assinatura da empresa.' };
   }
 }
 
