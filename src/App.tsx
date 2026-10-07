@@ -142,8 +142,8 @@ function extractInviteFromUrl(): { isInviteRoute: boolean; token: string | null 
 }
 
 function AppContent() {
-  const { user, isLoading } = useAuth();
-  const { canAccess, refreshMembers, currentRole, isAdmin } = useRbac();
+  const { user, isLoading: authLoading } = useAuth();
+  const { canAccess, refreshMembers, currentRole, isAdmin, isLoading: rbacLoading } = useRbac();
   const [currentSection, setCurrentSection] = useState<NavigationSection>(() => {
     return currentRole === 'ant_admin' ? 'admin_dashboard' : 'inicio';
   });
@@ -189,8 +189,8 @@ function AppContent() {
     }
   };
 
-  // 1. Loading State Screen
-  if (isLoading) {
+  // 1. Loading State Screen (aguarda autenticação E resolução determinística de RBAC)
+  if (authLoading || (user && rbacLoading)) {
     return (
       <div className="min-h-screen w-full flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-6">
         <div className="flex flex-col items-center text-center space-y-4">
@@ -199,7 +199,7 @@ function AppContent() {
           </div>
           <div className="flex items-center gap-2 text-xs font-semibold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/40 px-3 py-1.5 rounded-full border border-purple-200 dark:border-purple-800">
             <span className="w-2 h-2 rounded-full bg-purple-600 animate-ping" />
-            Carregando ambiente seguro...
+            Carregando permissões do colaborador...
           </div>
         </div>
       </div>

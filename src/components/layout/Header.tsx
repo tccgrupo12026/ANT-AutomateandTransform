@@ -15,7 +15,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate }) => {
   const { user, fullName, companyName, signOut } = useAuth();
   const { summary } = useSubscription();
-  const { currentRole, roleDefinition, isOwner, isAdmin } = useRbac();
+  const { currentRole, roleDefinition, isOwner, isAdmin, currentJobTitle } = useRbac();
   const isAntAdmin = currentRole === 'ant_admin' || isAdmin;
   const initial = (fullName || user?.email || 'E').charAt(0).toUpperCase();
 
@@ -106,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
           ) : (
             <>
               <Briefcase className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Funcionário</span>
+              <span className="truncate max-w-[120px]">{currentJobTitle || 'Funcionário'}</span>
             </>
           )}
         </button>

@@ -147,7 +147,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
               }`}
             >
-              {roleDefinition.name}
+              {isAntAdmin ? 'Admin ANT' : currentRole === 'owner' ? 'Proprietário' : 'Funcionário'}
             </span>
           </div>
 
@@ -224,7 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   : 'text-emerald-600 dark:text-emerald-400'
               }`}>
                 {isAntAdmin ? <Crown className="w-3 h-3 text-amber-500" /> : currentRole === 'owner' ? <ShieldCheck className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
-                <span className="truncate max-w-[90px]">{currentJobTitle || roleDefinition.name}</span>
+                <span className="truncate max-w-[90px]">{currentJobTitle || (currentRole === 'owner' ? 'Proprietário' : 'Funcionário')}</span>
               </span>
             </div>
           </div>

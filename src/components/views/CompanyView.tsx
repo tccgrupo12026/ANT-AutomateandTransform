@@ -19,6 +19,7 @@ import { Badge } from '../common/Badge';
 import { CardSkeleton } from '../common/Skeleton';
 import { AntLogo } from '../common/AntLogo';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRbac } from '../../contexts/RbacContext';
 import { companyService } from '../../services/companyService';
 import { CompanyFormData } from '../../types';
 
@@ -54,6 +55,8 @@ const BRAZILIAN_STATES = [
 
 export const CompanyView: React.FC = () => {
   const { user, companyName, fullName, updateUserMetadata } = useAuth();
+  const { isOwner, currentRole } = useRbac();
+  const canEditCompany = isOwner || currentRole === 'ant_admin';
 
   const [formData, setFormData] = useState<CompanyFormData>({
     company_name: '',
@@ -168,6 +171,14 @@ export const CompanyView: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!canEditCompany) {
+      setFeedback({
+        type: 'error',
+        message: 'Apenas o proprietário da conta possui permissão para alterar os dados da empresa.',
+      });
+      return;
+    }
 
     if (!user?.id) {
       setFeedback({
@@ -450,23 +461,30 @@ export const CompanyView: React.FC = () => {
                     <span className="text-purple-600 font-bold">*</span> Campos obrigatórios para identificação no ANT.
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs sm:text-sm font-bold shadow-sm shadow-purple-200 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Salvando dados...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4" />
-                        <span>Salvar Dados da Empresa</span>
-                      </>
-                    )}
-                  </button>
+                  {canEditCompany ? (
+                    <button
+                      type="submit"
+                      disabled={isSaving}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white text-xs sm:text-sm font-bold shadow-sm shadow-purple-200 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Salvando dados...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span>Salvar Dados da Empresa</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="text-xs font-semibold text-slate-500 bg-slate-100 dark:bg-slate-800 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-purple-600" />
+                      <span>Modo somente leitura (Apenas Proprietário pode alterar)</span>
+                    </div>
+                  )}
                 </div>
               </form>
             )}

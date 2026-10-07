@@ -40,9 +40,9 @@ export const QuickSaleView: React.FC = () => {
   const { user, fullName, companyName } = useAuth();
   const { effectiveCompanyId, currentRole, hasCustomPermission, isOwner } = useRbac();
 
-  const canExecuteSale = isOwner || hasCustomPermission('quicksale_execute');
-  const canViewHistory = isOwner || hasCustomPermission('quicksale_history');
-  const canCancelSale = isOwner || hasCustomPermission('quicksale_cancel');
+  const canExecuteSale = isOwner || hasCustomPermission('quick_sale_create');
+  const canViewHistory = isOwner || hasCustomPermission('quick_sale_view');
+  const canCancelSale = isOwner || hasCustomPermission('quick_sale_cancel');
 
   const [products, setProducts] = useState<Product[]>([]);
   const [salesHistory, setSalesHistory] = useState<Sale[]>([]);

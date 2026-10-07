@@ -557,10 +557,10 @@ export function checkSectionPermission(
     case 'configuracoes':
       return Boolean(perms.settings_view || perms.settings_edit);
     case 'precificacao':
-      return Boolean(perms.pricing_view !== false && perms.products_view);
+      return Boolean(perms.pricing_view && perms.products_view);
     case 'graficos':
       return Boolean(
-        perms.charts_view !== false &&
+        perms.charts_view &&
           (perms.financial_view || perms.quick_sale_view || perms.products_view)
       );
     default:

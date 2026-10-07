@@ -179,7 +179,7 @@ function loadMembersFromCache(companyId: string): CompanyMember[] | null {
  */
 export async function fetchCompanyMembers(
   companyId: string,
-  currentUser?: { id?: string; email?: string; name?: string; companyName?: string }
+  currentUser?: { id?: string; email?: string; name?: string; companyName?: string; role?: UserRole }
 ): Promise<CompanyMember[]> {
   clearLegacySimulatedRoles();
 
@@ -203,18 +203,14 @@ export async function fetchCompanyMembers(
             status: getMemberEffectiveStatus(m),
           }));
 
-        // Se o usuário atual logado não estiver na lista, garante o proprietário
-        if (currentUser?.email) {
-          const hasCurrentUser = members.some(
-            (m) => m.email.toLowerCase() === currentUser.email!.toLowerCase()
-          );
-          if (!hasCurrentUser) {
-            const ownerMember = createDefaultOwnerMember(companyId, currentUser);
-            members = [ownerMember, ...members];
-          }
-        } else if (members.length === 0) {
+        // Apenas injeta Proprietário se o usuário atual for explicitamente o Proprietário da conta
+        // NUNCA cria proprietário falso para colaboradores ou funcionários!
+        const isEmployeeUser = currentUser?.role === 'employee';
+        const hasOwner = members.some((m) => m.role === 'owner');
+
+        if (!hasOwner && !isEmployeeUser && currentUser?.role === 'owner' && currentUser?.email) {
           const ownerMember = createDefaultOwnerMember(companyId, currentUser);
-          members = [ownerMember];
+          members = [ownerMember, ...members];
         }
 
         saveMembersToCache(companyId, members);
@@ -228,21 +224,23 @@ export async function fetchCompanyMembers(
   // Fallback para cache local
   const cached = loadMembersFromCache(companyId);
   if (cached && cached.length > 0) {
-    if (currentUser?.email) {
-      const hasCurrentUser = cached.some(
-        (m) => m.email.toLowerCase() === currentUser.email!.toLowerCase()
-      );
-      if (!hasCurrentUser) {
-        const ownerMember = createDefaultOwnerMember(companyId, currentUser);
-        const merged = [ownerMember, ...cached];
-        saveMembersToCache(companyId, merged);
-        return merged;
-      }
+    const isEmployeeUser = currentUser?.role === 'employee';
+    const hasOwner = cached.some((m) => m.role === 'owner');
+    if (!hasOwner && !isEmployeeUser && currentUser?.role === 'owner' && currentUser?.email) {
+      const ownerMember = createDefaultOwnerMember(companyId, currentUser);
+      const merged = [ownerMember, ...cached];
+      saveMembersToCache(companyId, merged);
+      return merged;
     }
     return cached;
   }
 
-  // Se não houver nada, inicializa apenas com o proprietário real autenticado
+  // Se não houver membros e o usuário for explicitamente funcionário, retorna lista vazia
+  if (currentUser?.role === 'employee') {
+    return [];
+  }
+
+  // Se for o proprietário cadastrando pela primeira vez
   const initial = [createDefaultOwnerMember(companyId, currentUser)];
   saveMembersToCache(companyId, initial);
   return initial;
@@ -525,6 +523,7 @@ export async function acceptInvitation(
     try {
       localStorage.setItem(`ant_user_permissions_${activeUserId}`, JSON.stringify(updatedMember.permissions));
       localStorage.setItem(`ant_user_role_${activeUserId}`, updatedMember.role);
+      localStorage.setItem(`ant_user_job_title_${activeUserId}`, updatedMember.job_title || 'Funcionário');
     } catch {
       // Ignora erro de storage
     }
@@ -538,6 +537,9 @@ export async function acceptInvitation(
         .update({
           user_id: validUserId,
           status: 'active',
+          role: updatedMember.role,
+          job_title: updatedMember.job_title,
+          permissions: updatedMember.permissions,
           joined_at: nowIso,
           updated_at: nowIso,
         })
@@ -760,27 +762,54 @@ export async function findMemberMembership(
 ): Promise<CompanyMember | null> {
   const supabase = getSupabaseClient();
 
-  if (supabase && userId) {
+  if (supabase) {
     try {
-      const { data, error } = await supabase
-        .from('company_members')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+      // 1. Busca por user_id se fornecido
+      if (userId && isValidUuid(userId)) {
+        const { data, error } = await supabase
+          .from('company_members')
+          .select('*')
+          .eq('user_id', userId)
+          .order('updated_at', { ascending: false })
+          .limit(1);
 
-      if (!error && data) {
-        return data as CompanyMember;
+        if (!error && data && data.length > 0) {
+          return data[0] as CompanyMember;
+        }
       }
 
+      // 2. Busca por e-mail (case-insensitive com ilike)
       if (userEmail) {
+        const cleanEmail = userEmail.trim().toLowerCase();
         const { data: emailData, error: emailErr } = await supabase
           .from('company_members')
           .select('*')
-          .eq('email', userEmail.toLowerCase())
-          .maybeSingle();
+          .ilike('email', cleanEmail)
+          .order('updated_at', { ascending: false })
+          .limit(1);
 
-        if (!emailErr && emailData) {
-          return emailData as CompanyMember;
+        if (!emailErr && emailData && emailData.length > 0) {
+          const found = emailData[0] as CompanyMember;
+          // Auto-vincula o user_id real no Supabase caso estivesse pendente ou nulo
+          if (userId && isValidUuid(userId) && (!found.user_id || found.user_id !== userId)) {
+            (async () => {
+              try {
+                await supabase
+                  .from('company_members')
+                  .update({
+                    user_id: userId,
+                    status: 'active',
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', found.id);
+              } catch {
+                // Ignora erro assíncrono de atualização em segundo plano
+              }
+            })();
+            found.user_id = userId;
+            found.status = 'active';
+          }
+          return found;
         }
       }
     } catch (err) {
@@ -790,6 +819,7 @@ export async function findMemberMembership(
 
   // Fallback local
   try {
+    const cleanEmail = userEmail ? userEmail.trim().toLowerCase() : null;
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith(MEMBERS_CACHE_PREFIX)) {
@@ -797,7 +827,7 @@ export async function findMemberMembership(
         const found = list.find(
           (m) =>
             (userId && m.user_id === userId) ||
-            (userEmail && m.email.toLowerCase() === userEmail.toLowerCase())
+            (cleanEmail && m.email.toLowerCase() === cleanEmail)
         );
         if (found) return found;
       }
