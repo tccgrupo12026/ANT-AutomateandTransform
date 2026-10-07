@@ -46,6 +46,7 @@ export interface AdminMetrics {
   };
   trialConversionRate: number; // Porcentagem (0-100)
   monthlyGrowthRate: number; // Porcentagem (0-100)
+  totalNfeImports?: number; // Total de NF-e importadas na plataforma
 }
 
 /**

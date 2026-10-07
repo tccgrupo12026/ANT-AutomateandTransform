@@ -23,6 +23,7 @@ import {
 } from '../types/admin';
 import { PlanId, SubscriptionStatus, ANT_PLANS } from '../types/subscription';
 import { UserRole, MemberStatus } from '../types/rbac';
+import { nfeService } from './nfeService';
 
 const ADMIN_STATUS_OVERRIDE_KEY = 'ant_admin_status_overrides';
 const ADMIN_DELETED_COMPANIES_KEY = 'ant_admin_deleted_companies';
@@ -947,6 +948,13 @@ export async function calculateAdminMetrics(): Promise<{
   const basePrevious = Math.max(1, totalCompanies - newClientsLast30Days);
   const monthlyGrowthRate = (newClientsLast30Days / basePrevious) * 100;
 
+  let totalNfeImports = 0;
+  try {
+    totalNfeImports = await nfeService.getTotalPlatformNfeCount();
+  } catch {
+    // fallback
+  }
+
   const metrics: AdminMetrics = {
     totalCompanies,
     trialCompanies,
@@ -967,6 +975,7 @@ export async function calculateAdminMetrics(): Promise<{
     },
     trialConversionRate: Number(trialConversionRate.toFixed(1)),
     monthlyGrowthRate: Number(monthlyGrowthRate.toFixed(1)),
+    totalNfeImports,
   };
 
   const overview: AdminSubscriptionOverview = {

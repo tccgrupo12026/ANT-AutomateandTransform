@@ -16,6 +16,7 @@ export type NavigationSection =
   | 'produtos'
   | 'estoque'
   | 'movimentacoes'
+  | 'fiscal'
   | 'financeiro'
   | 'precificacao'
   | 'saude_negocio'
@@ -38,6 +39,7 @@ export * from './subscription';
 export * from './rbac';
 export * from './admin';
 export * from './support';
+export * from './nfe';
 
 export type PaymentMethod = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'outro';
 

@@ -77,13 +77,66 @@ function generateBoletoBarcode(amount: number): string {
   return `23793.38128 60000.123456 78000.654321 1 9876${cleanAmount}`;
 }
 
+/**
+ * Gera um QR Code demonstrativo em formato SVG Data URI (offline, autônomo e sem dependências)
+ * para exibição acadêmica (TCC).
+ */
+export function generateDemonstrativeQrCodeSvg(label = 'ANT GESTÃO'): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+    <rect width="200" height="200" fill="#ffffff" rx="12"/>
+    <!-- Marcadores de Canto (Finder Patterns) -->
+    <rect x="20" y="20" width="46" height="46" fill="#1e1b4b" rx="6"/>
+    <rect x="28" y="28" width="30" height="30" fill="#ffffff" rx="3"/>
+    <rect x="36" y="36" width="14" height="14" fill="#6d28d9" rx="2"/>
+
+    <rect x="134" y="20" width="46" height="46" fill="#1e1b4b" rx="6"/>
+    <rect x="142" y="28" width="30" height="30" fill="#ffffff" rx="3"/>
+    <rect x="150" y="36" width="14" height="14" fill="#6d28d9" rx="2"/>
+
+    <rect x="20" y="134" width="46" height="46" fill="#1e1b4b" rx="6"/>
+    <rect x="28" y="142" width="30" height="30" fill="#ffffff" rx="3"/>
+    <rect x="36" y="150" width="14" height="14" fill="#6d28d9" rx="2"/>
+
+    <!-- Matriz de Pontos Demonstrativa -->
+    <rect x="74" y="24" width="10" height="10" fill="#334155"/>
+    <rect x="94" y="24" width="10" height="10" fill="#334155"/>
+    <rect x="114" y="24" width="10" height="10" fill="#334155"/>
+    <rect x="74" y="44" width="10" height="10" fill="#334155"/>
+    <rect x="104" y="44" width="10" height="10" fill="#6d28d9"/>
+    <rect x="84" y="64" width="10" height="10" fill="#6d28d9"/>
+    <rect x="104" y="64" width="10" height="10" fill="#334155"/>
+    <rect x="124" y="64" width="10" height="10" fill="#334155"/>
+    <rect x="144" y="74" width="10" height="10" fill="#334155"/>
+    <rect x="164" y="74" width="10" height="10" fill="#334155"/>
+
+    <!-- Emblema Central ANT -->
+    <rect x="80" y="80" width="40" height="40" fill="#6d28d9" rx="8"/>
+    <text x="100" y="105" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="12" font-weight="900" fill="#ffffff" text-anchor="middle">ANT</text>
+
+    <!-- Quadrante Inferior Direito -->
+    <rect x="74" y="134" width="10" height="10" fill="#334155"/>
+    <rect x="94" y="134" width="10" height="10" fill="#334155"/>
+    <rect x="114" y="134" width="10" height="10" fill="#334155"/>
+    <rect x="134" y="134" width="10" height="10" fill="#6d28d9"/>
+    <rect x="154" y="134" width="10" height="10" fill="#334155"/>
+    <rect x="84" y="154" width="10" height="10" fill="#334155"/>
+    <rect x="104" y="154" width="10" height="10" fill="#334155"/>
+    <rect x="134" y="154" width="10" height="10" fill="#334155"/>
+    <rect x="154" y="154" width="10" height="10" fill="#6d28d9"/>
+    <rect x="164" y="164" width="10" height="10" fill="#334155"/>
+    <rect x="144" y="174" width="10" height="10" fill="#334155"/>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 // -------------------------------------------------------------
-// Serviço Principal
+// Serviço Principal (Simulação Acadêmica TCC)
 // -------------------------------------------------------------
 
 export const mercadoPagoService = {
   /**
-   * Processa o checkout no Mercado Pago (PIX, Cartão ou Boleto).
+   * Processa o checkout simulado (PIX, Cartão ou Boleto).
+   * Totalmente autônomo para ambiente acadêmico (TCC), sem dependência de credenciais reais ou Edge Functions.
    */
   async processCheckout(
     userId: string,
@@ -106,13 +159,18 @@ export const mercadoPagoService = {
     const amount = dto.billingCycle === 'yearly' ? Number((basePrice * 10).toFixed(2)) : basePrice;
 
     const now = new Date();
-    const paymentId = crypto.randomUUID ? crypto.randomUUID() : `pay_${Date.now()}`;
-    const mpPaymentId = `MP-${Math.floor(100000000 + Math.random() * 900000000)}`;
-    const mpPreferenceId = `PREF-${Math.floor(100000 + Math.random() * 900000)}`;
-
+    // No modo acadêmico: Cartão aprova imediatamente; PIX e Boleto geram cobrança pendente para demonstração
     const isImmediateApproval = dto.paymentMethod === 'credit_card';
     const status: PaymentStatus = isImmediateApproval ? 'pago' : 'pendente';
     const dueDate = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+    const paymentId = crypto.randomUUID ? crypto.randomUUID() : `pay_${Date.now()}`;
+    const mpPaymentId = `MP-SIM-${Math.floor(100000000 + Math.random() * 900000000)}`;
+    const mpPreferenceId = `PREF-SIM-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const pixPayload = generatePixPayload(amount, mpPaymentId);
+    const demonstrativeQrSvg = generateDemonstrativeQrCodeSvg('ANT GESTÃO');
+    const boletoBarcode = generateBoletoBarcode(amount);
 
     const newPayment: SubscriptionPayment = {
       id: paymentId,
@@ -127,17 +185,16 @@ export const mercadoPagoService = {
       mp_status: isImmediateApproval ? 'approved' : 'pending',
       paid_at: isImmediateApproval ? now.toISOString() : undefined,
       due_date: dueDate,
-      pix_copy_paste:
-        dto.paymentMethod === 'pix' ? generatePixPayload(amount, mpPaymentId) : undefined,
-      boleto_barcode:
-        dto.paymentMethod === 'boleto' ? generateBoletoBarcode(amount) : undefined,
+      pix_copy_paste: dto.paymentMethod === 'pix' ? pixPayload : undefined,
+      qr_code_base64: dto.paymentMethod === 'pix' ? demonstrativeQrSvg : undefined,
+      boleto_barcode: dto.paymentMethod === 'boleto' ? boletoBarcode : undefined,
       created_at: now.toISOString(),
       updated_at: now.toISOString(),
     };
 
-    // 1. Salvar pagamento localmente
+    // 1. Salvar no armazenamento local (offline-first & imediato)
     const localPayments = getLocalPayments();
-    saveLocalPayments([newPayment, ...localPayments]);
+    saveLocalPayments([newPayment, ...localPayments.filter((p) => p.id !== newPayment.id)]);
 
     // 2. Atualizar ou ativar assinatura
     const durationDays = dto.billingCycle === 'yearly' ? 365 : 30;
@@ -181,9 +238,11 @@ export const mercadoPagoService = {
           });
         });
       } catch (err) {
-        console.warn('Erro ao registrar pagamento no Supabase:', err);
+        console.warn('Registro local mantido. Persistência Supabase deferred:', err);
       }
     }
+
+    window.dispatchEvent(new Event('ant_plans_updated'));
 
     return {
       success: true,

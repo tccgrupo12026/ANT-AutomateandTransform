@@ -248,6 +248,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onNaviga
           </div>
           <p className="text-[11px] text-slate-500">Receita mensal recorrente</p>
         </div>
+
+        {/* Total de NF-e Importadas (Fase 4 / TCC) */}
+        <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-1">
+          <div className="flex items-center justify-between text-slate-400 text-xs font-bold uppercase tracking-wider">
+            <span>NF-e Importadas</span>
+            <FileText className="w-4 h-4 text-purple-600" />
+          </div>
+          <div className="text-3xl font-extrabold text-purple-700 dark:text-purple-300 mt-1">
+            {metrics?.totalNfeImports || 0}
+          </div>
+          <p className="text-[11px] text-slate-500">Módulo fiscal da plataforma</p>
+        </div>
       </div>
 
       {/* Alertas de Trials Próximos de Expirar */}

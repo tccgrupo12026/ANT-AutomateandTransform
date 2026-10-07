@@ -110,6 +110,24 @@ export const getResendFromEmail = (): string => {
   return 'ANT Gestão <convites@resend.dev>';
 };
 
+export const getMercadoPagoPublicKey = (): string => {
+  try {
+    const p1 = sanitizeValue(process.env.MERCADO_PAGO_PUBLIC_KEY);
+    if (p1) return p1;
+    const p2 = sanitizeValue(process.env.VITE_MERCADO_PAGO_PUBLIC_KEY);
+    if (p2) return p2;
+  } catch {}
+
+  try {
+    const m1 = sanitizeValue(import.meta.env.MERCADO_PAGO_PUBLIC_KEY);
+    if (m1) return m1;
+    const m2 = sanitizeValue(import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY);
+    if (m2) return m2;
+  } catch {}
+
+  return '';
+};
+
 export const getAppUrl = (): string => {
   try {
     const p = sanitizeValue(process.env.APP_URL) || sanitizeValue(process.env.VITE_APP_URL);
@@ -144,6 +162,13 @@ export const config = {
       resendApiKey: apiKey,
       fromEmail: fromEmail,
       isConfigured: Boolean(apiKey && apiKey.length > 5),
+    };
+  },
+  get mercadoPago() {
+    const publicKey = getMercadoPagoPublicKey();
+    return {
+      publicKey,
+      isConfigured: Boolean(publicKey),
     };
   },
   isProduction: typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD),

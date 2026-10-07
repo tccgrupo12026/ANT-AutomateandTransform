@@ -186,7 +186,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({
             Histórico de Pagamentos
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Histórico completo de faturas, cobranças e transações geradas via Mercado Pago.
+            Histórico completo de faturas, comprovantes e simulações de pagamento registradas na plataforma.
           </p>
         </div>
 
@@ -266,7 +266,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({
                   <th className="p-4">Valor</th>
                   <th className="p-4">Método</th>
                   <th className="p-4">Status</th>
-                  <th className="p-4">Referência Mercado Pago</th>
+                  <th className="p-4">Referência Gateway (Simulado)</th>
                   <th className="p-4 text-right">Ação</th>
                 </tr>
               </thead>
@@ -306,6 +306,18 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({
                               {copiedId === pay.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                               <span>{copiedId === pay.id ? 'Copiado!' : 'Copiar PIX'}</span>
                             </button>
+                          )}
+
+                          {pay.boleto_url && (
+                            <a
+                              href={pay.boleto_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 text-[11px] font-bold flex items-center gap-1 transition-colors"
+                              title="Ver Boleto Bancário"
+                            >
+                              <span>Ver Boleto</span>
+                            </a>
                           )}
 
                           <button

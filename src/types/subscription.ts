@@ -98,7 +98,11 @@ export interface SubscriptionPayment {
   paid_at?: string;
   due_date: string;
   pix_copy_paste?: string;
+  qr_code_base64?: string;
   boleto_barcode?: string;
+  boleto_url?: string;
+  init_point?: string;
+  ticket_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -107,6 +111,10 @@ export interface MercadoPagoCheckoutDTO {
   planId: PlanId;
   billingCycle: BillingCycle;
   paymentMethod: PaymentMethodType;
+  payerEmail?: string;
+  payerName?: string;
+  payerCpf?: string;
+  cardToken?: string;
   cardData?: {
     cardNumber: string;
     cardholderName: string;
@@ -114,6 +122,7 @@ export interface MercadoPagoCheckoutDTO {
     securityCode: string;
     installments?: number;
   };
+  backUrl?: string;
 }
 
 export const ANT_PLANS: Record<PlanId, PlanDetails> = {

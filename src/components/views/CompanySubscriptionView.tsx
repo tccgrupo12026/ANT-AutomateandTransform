@@ -267,8 +267,11 @@ export const CompanySubscriptionView: React.FC<CompanySubscriptionViewProps> = (
               <span className="text-[11px] text-slate-400 font-semibold block">Gateway</span>
               <span className="text-base font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1">
                 <span>Mercado Pago</span>
+                <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.5 rounded">
+                  Simulação TCC
+                </span>
               </span>
-              <span className="text-[10px] text-slate-400 block">PIX, Cartão & Boleto</span>
+              <span className="text-[10px] text-slate-400 block">PIX, Cartão & Boleto (Demonstrativo)</span>
             </div>
           </div>
 

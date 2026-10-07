@@ -71,6 +71,10 @@ export interface CustomUserPermissions {
   // Suporte & Chamados
   support_view?: boolean;
   support_create?: boolean;
+
+  // Fiscal / NF-e
+  fiscal_view?: boolean;
+  fiscal_import?: boolean;
 }
 
 /**
@@ -107,6 +111,8 @@ export function getDefaultOwnerPermissions(): CustomUserPermissions {
     charts_view: true,
     support_view: true,
     support_create: true,
+    fiscal_view: true,
+    fiscal_import: true,
   };
 }
 
@@ -144,6 +150,8 @@ export function getDefaultEmployeePermissions(): CustomUserPermissions {
     charts_view: false,
     support_view: true,
     support_create: true,
+    fiscal_view: true,
+    fiscal_import: true,
   };
 }
 
@@ -181,6 +189,8 @@ export function getEmptyPermissions(): CustomUserPermissions {
     charts_view: false,
     support_view: false,
     support_create: false,
+    fiscal_view: false,
+    fiscal_import: false,
   };
 }
 
@@ -292,6 +302,15 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     permissions: [
       { key: 'support_view', label: 'Visualizar chamados' },
       { key: 'support_create', label: 'Abrir chamados' },
+    ],
+  },
+  {
+    id: 'fiscal',
+    title: 'Fiscal (NF-e)',
+    iconName: 'Receipt',
+    permissions: [
+      { key: 'fiscal_view', label: 'Visualizar notas fiscais e histórico' },
+      { key: 'fiscal_import', label: 'Importar NF-e por chave de acesso' },
     ],
   },
 ];
@@ -585,6 +604,8 @@ export function checkSectionPermission(
       );
     case 'suporte':
       return Boolean(perms.support_view);
+    case 'fiscal':
+      return Boolean(perms.fiscal_view || perms.fiscal_import);
     default:
       return false;
   }

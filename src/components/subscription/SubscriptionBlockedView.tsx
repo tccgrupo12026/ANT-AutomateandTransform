@@ -119,10 +119,10 @@ export const SubscriptionBlockedView: React.FC<SubscriptionBlockedViewProps> = (
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1.5">
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
                 <CreditCard className="w-4 h-4" />
-                <span>Mercado Pago Oficial</span>
+                <span>Simulação de Gateway</span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Checkout seguro com suporte a PIX (Copia e Cola/QR Code), Cartão em até 12x e Boleto.
+                Fluxo simulado com PIX (QR Code demonstrativo), Cartão de Crédito e Boleto Bancário.
               </p>
             </div>
           </div>
@@ -131,21 +131,21 @@ export const SubscriptionBlockedView: React.FC<SubscriptionBlockedViewProps> = (
           <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                MP
+                ANT
               </div>
               <div>
                 <span className="text-xs font-bold text-purple-950 dark:text-purple-200 block">
-                  Pagamento Seguro via Mercado Pago
+                  Simulação de Pagamento (Ambiente Acadêmico — TCC)
                 </span>
                 <span className="text-[11px] text-purple-800 dark:text-purple-300">
-                  PIX Instantâneo • Cartão de Crédito • Boleto Bancário
+                  PIX Instantâneo • Cartão de Crédito • Boleto Bancário (Demonstrativo)
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300 text-xs font-bold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Gateway Online</span>
+              <span>Ambiente de Demonstração</span>
             </div>
           </div>
 
