@@ -258,18 +258,36 @@ class ReportService {
    */
   async getConsolidatedReports(userId: string): Promise<ConsolidatedReportsData> {
     const [companyRes, productsRes, movementsRes, financialRes, healthRes] = await Promise.all([
-      companyService.getCompany(userId),
-      productService.getProducts(userId),
-      movementService.getMovements(userId),
-      financialService.getTransactions(userId),
-      businessHealthService.getBusinessHealth(userId),
+      companyService.getCompany(userId).catch(() => ({ data: null })),
+      productService.getProducts(userId).catch(() => ({ data: [] })),
+      movementService.getMovements(userId).catch(() => ({ data: [] })),
+      financialService.getTransactions(userId).catch(() => ({ data: [] })),
+      businessHealthService
+        .getBusinessHealth(userId)
+        .catch(() => ({ data: businessHealthService.getEmptyHealthData(), error: null })),
     ]);
 
     const company = companyRes.data || null;
     const products = productsRes.data || [];
     const movements = movementsRes.data || [];
     const transactions = financialRes.data || [];
-    const healthData = healthRes.data || businessHealthService.getEmptyHealthData();
+    let healthData = healthRes?.data || businessHealthService.getEmptyHealthData();
+    if (!healthData) {
+      healthData = businessHealthService.getEmptyHealthData();
+    }
+    if (!healthData.healthScorePillars) {
+      healthData.healthScorePillars = {
+        financialHealth: { score: 0, max: 25, label: 'Saúde Financeira', details: 'Aguardando dados' },
+        inventoryHealth: { score: 0, max: 25, label: 'Gestão de Estoque', details: 'Aguardando dados' },
+        pricingHealth: { score: 0, max: 25, label: 'Margens & Precificação', details: 'Aguardando dados' },
+        operationalHealth: { score: 0, max: 25, label: 'Atividade Operacional', details: 'Aguardando dados' },
+      };
+    }
+    if (!Array.isArray(healthData.positivePoints)) healthData.positivePoints = [];
+    if (!Array.isArray(healthData.attentionPoints)) healthData.attentionPoints = [];
+    if (!Array.isArray(healthData.riskPoints)) healthData.riskPoints = [];
+    if (!Array.isArray(healthData.recommendations)) healthData.recommendations = [];
+    (healthData as any).goodPoints = healthData.positivePoints;
 
     // Relatório 1: Estoque Atual
     const estoqueAtual: ReportItemEstoque[] = products.map((p) => {
@@ -819,42 +837,48 @@ class ReportService {
 
       case 'saude_resumida': {
         filename = `ANT_Relatorio_Saude_Negocio_Resumo_${new Date().toISOString().slice(0, 10)}.csv`;
-        const h = data.saudeResumida;
+        const h = data.saudeResumida || businessHealthService.getEmptyHealthData();
+        const p = h.healthScorePillars || {
+          financialHealth: { score: 0, max: 25, details: '' },
+          inventoryHealth: { score: 0, max: 25, details: '' },
+          pricingHealth: { score: 0, max: 25, details: '' },
+          operationalHealth: { score: 0, max: 25, details: '' },
+        };
         const lines = [
           ['Empresa', sanitize(companyName)].join(';'),
           ['Data de Emissão', sanitize(new Date().toLocaleString('pt-BR'))].join(';'),
-          ['Pontuação Geral de Saúde (0 a 100)', h.healthScore].join(';'),
-          ['Status da Empresa', sanitize(h.healthStatus.toUpperCase())].join(';'),
+          ['Pontuação Geral de Saúde (0 a 100)', h.healthScore ?? 0].join(';'),
+          ['Status da Empresa', sanitize((h.healthStatus || 'atencao').toUpperCase())].join(';'),
           ['', ''].join(';'),
           ['PILAR', 'PONTUAÇÃO', 'DETALHES'].join(';'),
           [
             'Saúde Financeira',
-            `${h.healthScorePillars.financialHealth.score}/${h.healthScorePillars.financialHealth.max}`,
-            sanitize(h.healthScorePillars.financialHealth.details),
+            `${p.financialHealth?.score ?? 0}/${p.financialHealth?.max ?? 25}`,
+            sanitize(p.financialHealth?.details || ''),
           ].join(';'),
           [
             'Gestão de Estoque',
-            `${h.healthScorePillars.inventoryHealth.score}/${h.healthScorePillars.inventoryHealth.max}`,
-            sanitize(h.healthScorePillars.inventoryHealth.details),
+            `${p.inventoryHealth?.score ?? 0}/${p.inventoryHealth?.max ?? 25}`,
+            sanitize(p.inventoryHealth?.details || ''),
           ].join(';'),
           [
             'Margens e Precificação',
-            `${h.healthScorePillars.pricingHealth.score}/${h.healthScorePillars.pricingHealth.max}`,
-            sanitize(h.healthScorePillars.pricingHealth.details),
+            `${p.pricingHealth?.score ?? 0}/${p.pricingHealth?.max ?? 25}`,
+            sanitize(p.pricingHealth?.details || ''),
           ].join(';'),
           [
             'Atividade Operacional',
-            `${h.healthScorePillars.operationalHealth.score}/${h.healthScorePillars.operationalHealth.max}`,
-            sanitize(h.healthScorePillars.operationalHealth.details),
+            `${p.operationalHealth?.score ?? 0}/${p.operationalHealth?.max ?? 25}`,
+            sanitize(p.operationalHealth?.details || ''),
           ].join(';'),
           ['', ''].join(';'),
           ['INDICADORES DO MÊS', 'VALOR'].join(';'),
-          ['Faturamento Mês Atual', sanitize(formatBRL(h.currentMonthRevenue))].join(';'),
-          ['Despesas Mês Atual', sanitize(formatBRL(h.currentMonthExpense))].join(';'),
-          ['Lucro Líquido do Mês', sanitize(formatBRL(h.currentMonthProfit))].join(';'),
-          ['Capital Parado em Estoque', sanitize(formatBRL(h.totalInventoryCapitalCost))].join(';'),
-          ['Produtos com Estoque Crítico', h.belowMinStockTotalCount].join(';'),
-          ['Produtos Sem Movimentação (> 30d)', h.stagnantProducts.length].join(';'),
+          ['Faturamento Mês Atual', sanitize(formatBRL(h.currentMonthRevenue ?? 0))].join(';'),
+          ['Despesas Mês Atual', sanitize(formatBRL(h.currentMonthExpense ?? 0))].join(';'),
+          ['Lucro Líquido do Mês', sanitize(formatBRL(h.currentMonthProfit ?? 0))].join(';'),
+          ['Capital Parado em Estoque', sanitize(formatBRL(h.totalInventoryCapitalCost ?? 0))].join(';'),
+          ['Produtos com Estoque Crítico', h.belowMinStockTotalCount ?? 0].join(';'),
+          ['Produtos Sem Movimentação (> 30d)', (h.stagnantProducts || []).length].join(';'),
         ];
         csvContent = lines.join('\r\n');
         break;

@@ -50,6 +50,7 @@ import {
   ReportType,
   ConsolidatedReportsData,
 } from '../../services/reportService';
+import { businessHealthService } from '../../services/businessHealthService';
 import { NavigationSection } from '../../types';
 
 interface ReportsViewProps {
@@ -66,6 +67,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
   const [activeReport, setActiveReport] = useState<ReportType>('estoque_atual');
   const [data, setData] = useState<ConsolidatedReportsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filtros de busca
   const [searchTerm, setSearchTerm] = useState('');
@@ -73,13 +75,18 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('todos');
 
   const loadReportsData = async () => {
-    if (!user) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
+      setError(null);
       const res = await reportService.getConsolidatedReports(user.id);
       setData(res);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao carregar relatórios:', err);
+      setError(err?.message || 'Falha ao consolidar relatórios. Tente recarregar os dados.');
     } finally {
       setLoading(false);
     }
@@ -87,7 +94,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
 
   useEffect(() => {
     loadReportsData();
-  }, [user]);
+  }, [user?.id]);
 
   // Lista de categorias únicas para filtros
   const categoriesList = useMemo(() => {
@@ -195,6 +202,32 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
         <p className="text-sm font-medium text-slate-500">
           Consolidando relatórios do ANT...
         </p>
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-center max-w-md mx-auto shadow-sm">
+        <div className="p-3.5 bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 rounded-2xl">
+          <AlertTriangle className="w-8 h-8" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+            Falha ao carregar relatórios
+          </h3>
+          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+            {error}
+          </p>
+        </div>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={loadReportsData}
+          leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+        >
+          Tentar Novamente
+        </Button>
       </div>
     );
   }
@@ -310,7 +343,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
           <Package className="w-4 h-4" />
           Estoque Atual
           <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/20">
-            {data?.summary.totalProducts || 0}
+            {data?.summary?.totalProducts ?? 0}
           </span>
         </button>
 
@@ -328,7 +361,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
           <ArrowLeftRight className="w-4 h-4" />
           Movimentações
           <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/20">
-            {data?.summary.totalMovements || 0}
+            {data?.summary?.totalMovements ?? 0}
           </span>
         </button>
 
@@ -346,7 +379,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
           <DollarSign className="w-4 h-4" />
           Financeiro
           <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-white/20">
-            {data?.financeiro.length || 0}
+            {data?.financeiro?.length ?? 0}
           </span>
         </button>
 
@@ -363,7 +396,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
         >
           <AlertTriangle className="w-4 h-4" />
           Estoque Baixo
-          {data?.summary.criticalStockItemsCount ? (
+          {data?.summary?.criticalStockItemsCount ? (
             <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400 text-slate-950 font-black">
               {data.summary.criticalStockItemsCount}
             </span>
@@ -381,7 +414,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
           <Activity className="w-4 h-4" />
           Saúde do Negócio Resumida
           <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-400 text-slate-950 font-black">
-            {data?.saudeResumida.healthScore || 0} pts
+            {data?.saudeResumida?.healthScore ?? 0} pts
           </span>
         </button>
       </div>
@@ -905,237 +938,277 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ onNavigate }) => {
       {/* ========================================================================= */}
       {/* 5. RELATÓRIO: SAÚDE DO NEGÓCIO RESUMIDA */}
       {/* ========================================================================= */}
-      {activeReport === 'saude_resumida' && data && (
-        <div className="space-y-6">
-          {/* Cabeçalho do Score */}
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-purple-100 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 flex flex-col items-center justify-center font-black text-purple-700 dark:text-purple-300 shrink-0">
-                <span className="text-2xl leading-none">{data.saudeResumida.healthScore}</span>
-                <span className="text-[9px] uppercase tracking-wider text-purple-500">pts</span>
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">
-                    Diagnóstico Executivo de Saúde
-                  </h3>
-                  <Badge
-                    variant={
-                      data.saudeResumida.healthStatus === 'excelente' ||
-                      data.saudeResumida.healthStatus === 'saudavel'
-                        ? 'green'
-                        : data.saudeResumida.healthStatus === 'atencao'
-                        ? 'warning'
-                        : 'red'
-                    }
-                  >
-                    {data.saudeResumida.healthStatus.toUpperCase()}
-                  </Badge>
+      {activeReport === 'saude_resumida' && (() => {
+        const h = data?.saudeResumida || businessHealthService.getEmptyHealthData();
+
+        const score = typeof h?.healthScore === 'number' ? h.healthScore : 50;
+        const status = h?.healthStatus || 'atencao';
+
+        const defaultPillars = {
+          financialHealth: { score: 15, max: 35, label: 'Saúde Financeira', details: 'Aguardando dados de receitas e despesas' },
+          inventoryHealth: { score: 15, max: 35, label: 'Gestão de Estoque', details: 'Aguardando cadastro de produtos no catálogo' },
+          pricingHealth: { score: 10, max: 20, label: 'Margens & Precificação', details: 'Aguardando precificação e custos' },
+          operationalHealth: { score: 5, max: 10, label: 'Atividade Operacional', details: 'Aguardando movimentações de estoque' },
+        };
+
+        const rawPillars = h?.healthScorePillars || defaultPillars;
+        const pillars = {
+          financialHealth: rawPillars.financialHealth || defaultPillars.financialHealth,
+          inventoryHealth: rawPillars.inventoryHealth || defaultPillars.inventoryHealth,
+          pricingHealth: rawPillars.pricingHealth || defaultPillars.pricingHealth,
+          operationalHealth: rawPillars.operationalHealth || defaultPillars.operationalHealth,
+        };
+
+        const goodPointsList: any[] = Array.isArray((h as any)?.goodPoints)
+          ? (h as any).goodPoints
+          : Array.isArray(h?.positivePoints)
+          ? h.positivePoints
+          : [];
+        const attentionPointsList: any[] = Array.isArray(h?.attentionPoints) ? h.attentionPoints : [];
+        const recommendationsList: any[] = Array.isArray(h?.recommendations) ? h.recommendations : [];
+
+        return (
+          <div className="space-y-6">
+            {/* Cabeçalho do Score */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-purple-100 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 flex flex-col items-center justify-center font-black text-purple-700 dark:text-purple-300 shrink-0">
+                  <span className="text-2xl leading-none">{score}</span>
+                  <span className="text-[9px] uppercase tracking-wider text-purple-500">pts</span>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Avaliação automatizada 100% determinística através de 4 pilares de gestão.
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-slate-900 dark:text-slate-100">
+                      Diagnóstico Executivo de Saúde
+                    </h3>
+                    <Badge
+                      variant={
+                        status === 'excelente' || status === 'saudavel'
+                          ? 'green'
+                          : status === 'atencao'
+                          ? 'warning'
+                          : 'red'
+                      }
+                    >
+                      {String(status).toUpperCase()}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Avaliação automatizada 100% determinística através de 4 pilares de gestão.
+                  </p>
+                </div>
+              </div>
+
+              {onNavigate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="print:hidden"
+                  onClick={() => onNavigate('saude_negocio')}
+                  rightIcon={<ChevronRight className="w-4 h-4" />}
+                >
+                  Abrir Diagnóstico Completo
+                </Button>
+              )}
+            </div>
+
+            {/* 4 Pilares de Pontuação */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-900 dark:text-slate-100">
+                    Saúde Financeira
+                  </span>
+                  <span className="font-mono font-bold text-purple-600 dark:text-purple-400">
+                    {pillars.financialHealth?.score ?? 0}/{pillars.financialHealth?.max || 35}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-purple-600 h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (((pillars.financialHealth?.score ?? 0) / (pillars.financialHealth?.max || 35)) * 100)))}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {pillars.financialHealth?.details || 'Indicador financeiro baseado nas receitas e despesas reais.'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-900 dark:text-slate-100">
+                    Gestão de Estoque
+                  </span>
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    {pillars.inventoryHealth?.score ?? 0}/{pillars.inventoryHealth?.max || 35}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-emerald-500 h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (((pillars.inventoryHealth?.score ?? 0) / (pillars.inventoryHealth?.max || 35)) * 100)))}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {pillars.inventoryHealth?.details || 'Monitoramento de ruptura e estoque mínimo de segurança.'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-900 dark:text-slate-100">
+                    Margens &amp; Preços
+                  </span>
+                  <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                    {pillars.pricingHealth?.score ?? 0}/{pillars.pricingHealth?.max || 20}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-blue-500 h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (((pillars.pricingHealth?.score ?? 0) / (pillars.pricingHealth?.max || 20)) * 100)))}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {pillars.pricingHealth?.details || 'Equilíbrio entre custo de aquisição e margem de contribuição.'}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-900 dark:text-slate-100">
+                    Giro Operacional
+                  </span>
+                  <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                    {pillars.operationalHealth?.score ?? 0}/{pillars.operationalHealth?.max || 10}
+                  </span>
+                </div>
+                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div
+                    className="bg-amber-500 h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (((pillars.operationalHealth?.score ?? 0) / (pillars.operationalHealth?.max || 10)) * 100)))}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {pillars.operationalHealth?.details || 'Taxa de renovação e velocidade de saída de itens do estoque.'}
                 </p>
               </div>
             </div>
 
-            {onNavigate && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="print:hidden"
-                onClick={() => onNavigate('saude_negocio')}
-                rightIcon={<ChevronRight className="w-4 h-4" />}
-              >
-                Abrir Diagnóstico Completo
-              </Button>
-            )}
-          </div>
-
-          {/* 4 Pilares de Pontuação */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 dark:text-slate-100">
-                  Saúde Financeira
-                </span>
-                <span className="font-mono font-bold text-purple-600 dark:text-purple-400">
-                  {data.saudeResumida.healthScorePillars.financialHealth.score}/
-                  {data.saudeResumida.healthScorePillars.financialHealth.max}
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-purple-600 h-full rounded-full"
-                  style={{
-                    width: `${(data.saudeResumida.healthScorePillars.financialHealth.score / data.saudeResumida.healthScorePillars.financialHealth.max) * 100}%`,
-                  }}
-                />
-              </div>
-              <p className="text-[11px] text-slate-500">
-                {data.saudeResumida.healthScorePillars.financialHealth.details}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 dark:text-slate-100">
-                  Gestão de Estoque
-                </span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                  {data.saudeResumida.healthScorePillars.inventoryHealth.score}/
-                  {data.saudeResumida.healthScorePillars.inventoryHealth.max}
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full rounded-full"
-                  style={{
-                    width: `${(data.saudeResumida.healthScorePillars.inventoryHealth.score / data.saudeResumida.healthScorePillars.inventoryHealth.max) * 100}%`,
-                  }}
-                />
-              </div>
-              <p className="text-[11px] text-slate-500">
-                {data.saudeResumida.healthScorePillars.inventoryHealth.details}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 dark:text-slate-100">
-                  Margens &amp; Preços
-                </span>
-                <span className="font-mono font-bold text-blue-600 dark:text-blue-400">
-                  {data.saudeResumida.healthScorePillars.pricingHealth.score}/
-                  {data.saudeResumida.healthScorePillars.pricingHealth.max}
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-blue-500 h-full rounded-full"
-                  style={{
-                    width: `${(data.saudeResumida.healthScorePillars.pricingHealth.score / data.saudeResumida.healthScorePillars.pricingHealth.max) * 100}%`,
-                  }}
-                />
-              </div>
-              <p className="text-[11px] text-slate-500">
-                {data.saudeResumida.healthScorePillars.pricingHealth.details}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-900 dark:text-slate-100">
-                  Giro Operacional
-                </span>
-                <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
-                  {data.saudeResumida.healthScorePillars.operationalHealth.score}/
-                  {data.saudeResumida.healthScorePillars.operationalHealth.max}
-                </span>
-              </div>
-              <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-amber-500 h-full rounded-full"
-                  style={{
-                    width: `${(data.saudeResumida.healthScorePillars.operationalHealth.score / data.saudeResumida.healthScorePillars.operationalHealth.max) * 100}%`,
-                  }}
-                />
-              </div>
-              <p className="text-[11px] text-slate-500">
-                {data.saudeResumida.healthScorePillars.operationalHealth.details}
-              </p>
-            </div>
-          </div>
-
-          {/* Destaques e Recomendações em 2 Colunas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* O que vai bem e Pontos de Atenção */}
-            <Card id="health-report-highlights" title="Destaques &amp; Alertas da Operação">
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    O que está indo bem
-                  </h4>
-                  <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                    {data.saudeResumida.goodPoints.length === 0 ? (
-                      <li className="text-slate-400">Sem destaques no período.</li>
-                    ) : (
-                      data.saudeResumida.goodPoints.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-emerald-500 font-bold">•</span>
-                          <span>
-                            <strong>{item.title}:</strong> {item.description}
-                          </span>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    O que precisa de atenção
-                  </h4>
-                  <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                    {data.saudeResumida.attentionPoints.length === 0 ? (
-                      <li className="text-slate-400">Nenhum alerta pendente.</li>
-                    ) : (
-                      data.saudeResumida.attentionPoints.map((item, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-amber-500 font-bold">•</span>
-                          <span>
-                            <strong>{item.title}:</strong> {item.description}
-                          </span>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </Card>
-
-            {/* Recomendações Práticas */}
-            <Card id="health-report-recs" title="Recomendações Práticas Imediatas">
-              <div className="space-y-3">
-                {data.saudeResumida.recommendations.length === 0 ? (
-                  <div className="text-xs text-slate-400 py-6 text-center">
-                    Empresa operando de forma equilibrada sem ações urgentes pendentes.
+            {/* Destaques e Recomendações em 2 Colunas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* O que vai bem e Pontos de Atenção */}
+              <Card id="health-report-highlights" title="Destaques &amp; Alertas da Operação">
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      O que está indo bem
+                    </h4>
+                    <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                      {goodPointsList.length === 0 ? (
+                        <li className="text-slate-400 italic">Sem destaques no período avaliado.</li>
+                      ) : (
+                        goodPointsList.map((item: any, i: number) => {
+                          const itemTitle = typeof item === 'object' && item !== null ? item.title : String(item || 'Destaque');
+                          const itemDesc = typeof item === 'object' && item !== null ? item.description : '';
+                          return (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-emerald-500 font-bold">•</span>
+                              <span>
+                                <strong>{itemTitle}:</strong> {itemDesc}
+                              </span>
+                            </li>
+                          );
+                        })
+                      )}
+                    </ul>
                   </div>
-                ) : (
-                  data.saudeResumida.recommendations.map((rec) => (
-                    <div
-                      key={rec.id}
-                      className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-1.5"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                          {rec.title}
-                        </span>
-                        <Badge
-                          variant={
-                            rec.priority === 'alta'
-                              ? 'red'
-                              : rec.priority === 'media'
-                              ? 'warning'
-                              : 'neutral'
-                          }
-                          size="sm"
-                        >
-                          {rec.priority.toUpperCase()}
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        {rec.description}
-                      </p>
+
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <h4 className="text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      O que precisa de atenção
+                    </h4>
+                    <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                      {attentionPointsList.length === 0 ? (
+                        <li className="text-slate-400 italic">Nenhum alerta pendente no momento.</li>
+                      ) : (
+                        attentionPointsList.map((item: any, i: number) => {
+                          const itemTitle = typeof item === 'object' && item !== null ? item.title : String(item || 'Ponto de Atenção');
+                          const itemDesc = typeof item === 'object' && item !== null ? item.description : '';
+                          return (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-amber-500 font-bold">•</span>
+                              <span>
+                                <strong>{itemTitle}:</strong> {itemDesc}
+                              </span>
+                            </li>
+                          );
+                        })
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Recomendações Práticas */}
+              <Card id="health-report-recs" title="Recomendações Práticas Imediatas">
+                <div className="space-y-3">
+                  {recommendationsList.length === 0 ? (
+                    <div className="text-xs text-slate-400 py-6 text-center italic">
+                      Empresa operando de forma equilibrada sem ações urgentes pendentes.
                     </div>
-                  ))
-                )}
-              </div>
-            </Card>
+                  ) : (
+                    recommendationsList.map((rec: any, idx: number) => {
+                      const recTitle = typeof rec === 'object' && rec !== null ? rec.title : String(rec || 'Recomendação de Gestão');
+                      const recDesc = typeof rec === 'object' && rec !== null ? rec.description : '';
+                      const rawPriority = typeof rec === 'object' && rec !== null && rec.priority ? String(rec.priority) : 'normal';
+                      return (
+                        <div
+                          key={(rec && typeof rec === 'object' && rec.id) || idx}
+                          className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-1.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                              {recTitle}
+                            </span>
+                            <Badge
+                              variant={
+                                rawPriority === 'alta'
+                                  ? 'red'
+                                  : rawPriority === 'media'
+                                  ? 'warning'
+                                  : 'neutral'
+                              }
+                              size="sm"
+                            >
+                              {rawPriority.toUpperCase()}
+                            </Badge>
+                          </div>
+                          {recDesc && (
+                            <p className="text-[11px] text-slate-500">
+                              {recDesc}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </Card>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

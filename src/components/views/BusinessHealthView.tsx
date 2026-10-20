@@ -96,7 +96,11 @@ export const BusinessHealthView: React.FC<BusinessHealthViewProps> = ({ onNaviga
 
   const handleActionClick = (targetSection?: NavigationSection) => {
     if (targetSection && onNavigate) {
-      onNavigate(targetSection);
+      if ((targetSection as string) === 'produtos' || (targetSection as string) === 'precificacao') {
+        onNavigate('estoque');
+      } else {
+        onNavigate(targetSection);
+      }
     }
   };
 

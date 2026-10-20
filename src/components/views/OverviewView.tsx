@@ -189,9 +189,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
               <RotateCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
 
-            {canAccess('produtos') && (
+            {canAccess('estoque') && (
               <button
-                onClick={() => onNavigate('produtos')}
+                onClick={() => onNavigate('estoque')}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white text-purple-900 hover:bg-purple-50 text-xs sm:text-sm font-bold shadow-xs transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-purple-700" />
@@ -244,7 +244,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* KPI 1: Total de Produtos Cadastrados */}
             <div
-              onClick={() => onNavigate('produtos')}
+              onClick={() => onNavigate('estoque')}
               className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 rounded-2xl p-5 shadow-2xs transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between">
@@ -262,14 +262,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
                 <span className="text-xs font-bold text-slate-400">itens cadastrados</span>
               </div>
               <div className="mt-2 text-[11px] text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1">
-                <span>Gerenciar catálogo de produtos</span>
+                <span>Gerenciar catálogo no estoque</span>
                 <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
               </div>
             </div>
 
             {/* KPI 2: Total de Itens em Estoque */}
             <div
-              onClick={() => onNavigate('produtos')}
+              onClick={() => onNavigate('estoque')}
               className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 rounded-2xl p-5 shadow-2xs transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between">
@@ -294,7 +294,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
 
             {/* KPI 3: Produtos com Estoque Baixo */}
             <div
-              onClick={() => onNavigate('produtos')}
+              onClick={() => onNavigate('estoque')}
               className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-2xs transition-all cursor-pointer group ${
                 metrics.lowStockCount > 0
                   ? 'border-amber-200 dark:border-amber-900/60 hover:border-amber-400'
@@ -335,7 +335,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
 
             {/* KPI 4: Produtos Sem Estoque */}
             <div
-              onClick={() => onNavigate('produtos')}
+              onClick={() => onNavigate('estoque')}
               className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-2xs transition-all cursor-pointer group ${
                 metrics.outOfStockCount > 0
                   ? 'border-rose-200 dark:border-rose-900/60 hover:border-rose-400'
@@ -679,9 +679,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
                 subtitle="Navegação ágil para a gestão do dia a dia"
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {canAccess('produtos') && (
+                  {canAccess('estoque') && (
                     <button
-                      onClick={() => onNavigate('produtos')}
+                      onClick={() => onNavigate('estoque')}
                       className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-700 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-left transition-all group cursor-pointer"
                     >
                       <div className="flex items-center gap-2.5">
