@@ -22,6 +22,8 @@ import {
   LifeBuoy,
   Layers,
   Sparkles,
+  Receipt,
+  ChevronDown,
 } from 'lucide-react';
 import { AntLogo } from '../common/AntLogo';
 import { NavigationSection } from '../../types';
@@ -52,6 +54,7 @@ const staticNavItems: NavItem[] = [
   { id: 'produtos', label: 'Produtos', icon: Package },
   { id: 'estoque', label: 'Estoque', icon: Boxes },
   { id: 'movimentacoes', label: 'Movimentações', icon: ArrowLeftRight },
+  { id: 'fiscal', label: 'Fiscal', icon: Receipt, badge: 'NF-e', badgeColor: 'purple' },
   { id: 'financeiro', label: 'Financeiro', icon: DollarSign },
   { id: 'precificacao', label: 'Precificação', icon: Calculator },
   { id: 'saude_negocio', label: 'Saúde do Negócio', icon: Activity, badge: 'Regras', badgeColor: 'green' },
@@ -84,8 +87,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const [supportUnreadCount, setSupportUnreadCount] = React.useState<number>(0);
   const [supportOpenCount, setSupportOpenCount] = React.useState<number>(0);
+  const [isFiscalSubmenuOpen, setIsFiscalSubmenuOpen] = React.useState<boolean>(currentSection === 'fiscal');
 
   const isAntAdmin = currentRole === 'ant_admin' || isAdmin;
+
+  React.useEffect(() => {
+    if (currentSection === 'fiscal') {
+      setIsFiscalSubmenuOpen(true);
+    }
+  }, [currentSection]);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -213,48 +223,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 ? 'purple'
                 : item.badgeColor;
 
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onSelectSection(item.id);
-                  onCloseMobile();
-                }}
-                className={`cursor-pointer w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                  isActive
-                    ? 'bg-purple-600 text-white shadow-sm shadow-purple-200 dark:shadow-none'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:text-purple-700 dark:hover:text-purple-300'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive
-                        ? 'text-white'
-                        : 'text-slate-400 group-hover:text-purple-600'
-                    }`}
-                  />
-                  <span>{item.label}</span>
-                </div>
+            const isFiscal = item.id === 'fiscal';
 
-                {badge && (
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
-                      isActive
-                        ? 'bg-white/20 text-white'
-                        : badgeColor === 'green'
-                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                        : badgeColor === 'rose'
-                        ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                        : badgeColor === 'amber'
-                        ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                        : 'bg-purple-100 text-purple-700'
-                    }`}
-                  >
-                    {badge}
-                  </span>
+            return (
+              <div key={item.id} className="space-y-0.5">
+                <button
+                  onClick={() => {
+                    if (isFiscal) {
+                      setIsFiscalSubmenuOpen((prev) => !prev);
+                    }
+                    onSelectSection(item.id);
+                    onCloseMobile();
+                  }}
+                  className={`cursor-pointer w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    isActive
+                      ? 'bg-purple-600 text-white shadow-sm shadow-purple-200 dark:shadow-none'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:text-purple-700 dark:hover:text-purple-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon
+                      className={`w-4 h-4 ${
+                        isActive
+                          ? 'text-white'
+                          : 'text-slate-400 group-hover:text-purple-600'
+                      }`}
+                    />
+                    <span>{item.label}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {badge && (
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                          isActive
+                            ? 'bg-white/20 text-white'
+                            : badgeColor === 'green'
+                            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                            : badgeColor === 'rose'
+                            ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                            : badgeColor === 'amber'
+                            ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                            : 'bg-purple-100 text-purple-700'
+                        }`}
+                      >
+                        {badge}
+                      </span>
+                    )}
+
+                    {isFiscal && (
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                          isFiscalSubmenuOpen ? 'rotate-180' : ''
+                        } ${isActive ? 'text-white' : 'text-slate-400'}`}
+                      />
+                    )}
+                  </div>
+                </button>
+
+                {/* Submenu Fiscal: Importação de NF-e e Histórico */}
+                {isFiscal && isFiscalSubmenuOpen && (
+                  <div className="ml-5 pl-3 border-l-2 border-purple-200 dark:border-purple-800/60 space-y-1 py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectSection('fiscal');
+                        window.dispatchEvent(new CustomEvent('ant_fiscal_tab', { detail: 'import' }));
+                        onCloseMobile();
+                      }}
+                      className="cursor-pointer w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors text-left"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                      <span>Importação de NF-e</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectSection('fiscal');
+                        window.dispatchEvent(new CustomEvent('ant_fiscal_tab', { detail: 'history' }));
+                        onCloseMobile();
+                      }}
+                      className="cursor-pointer w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-purple-700 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors text-left"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                      <span>Histórico de NF-e</span>
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>

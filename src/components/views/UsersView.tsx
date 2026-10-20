@@ -39,6 +39,7 @@ import {
   Activity,
   Settings,
   LifeBuoy,
+  Receipt,
 } from 'lucide-react';
 import { useRbac } from '../../contexts/RbacContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -97,6 +98,8 @@ const getGroupIcon = (groupId: string) => {
       return <Settings className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />;
     case 'suporte':
       return <LifeBuoy className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />;
+    case 'fiscal':
+      return <Receipt className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />;
     default:
       return <Shield className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />;
   }

@@ -19,6 +19,8 @@ import {
   PlusCircle,
   Pause,
   Play,
+  FileText,
+  Receipt,
 } from 'lucide-react';
 import {
   calculateAdminMetrics,

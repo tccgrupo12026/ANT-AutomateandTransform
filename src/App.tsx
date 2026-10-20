@@ -44,6 +44,7 @@ import { AdminSubscriptionsView } from './components/admin/AdminSubscriptionsVie
 import { AdminPlatformView } from './components/admin/AdminPlatformView';
 import { AdminSupportView } from './components/admin/AdminSupportView';
 import { SupportView } from './components/views/SupportView';
+import { FiscalView } from './components/views/FiscalView';
 
 /**
  * Extrai token de convite e detecta se a URL atual é uma rota de aceite de convite.
@@ -301,6 +302,8 @@ function AppContent() {
         return <ProductsView />;
       case 'movimentacoes':
         return <MovementsView />;
+      case 'fiscal':
+        return <FiscalView onNavigate={setCurrentSection} />;
       case 'financeiro':
         return <FinancialView />;
       case 'precificacao':
