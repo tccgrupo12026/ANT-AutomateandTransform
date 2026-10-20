@@ -386,7 +386,7 @@ export const ProductsView: React.FC = () => {
         <div className="flex items-center gap-3">
           <Badge variant="purple" size="md">
             <ShieldCheck className="w-3.5 h-3.5 mr-1 inline text-purple-600 dark:text-purple-400" />
-            Supabase RLS
+            Catálogo Protegido
           </Badge>
 
           {canCreate && (

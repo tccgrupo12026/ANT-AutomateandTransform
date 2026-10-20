@@ -139,7 +139,7 @@ export const productService = {
         }
       } catch (err: any) {
         console.error('Falha de conexão ao inserir produto no Supabase:', err?.message || err);
-        return { data: null, error: err?.message || 'Falha ao cadastrar produto no Supabase.' };
+        return { data: null, error: err?.message || 'Falha ao cadastrar produto no sistema.' };
       }
     }
 
@@ -230,7 +230,7 @@ export const productService = {
         }
       } catch (err: any) {
         console.error('Falha de conexão ao atualizar produto no Supabase:', err?.message || err);
-        return { data: null, error: err?.message || 'Falha ao atualizar produto no Supabase.' };
+        return { data: null, error: err?.message || 'Falha ao atualizar produto no sistema.' };
       }
     }
 
@@ -277,7 +277,7 @@ export const productService = {
         return { success: true, error: null };
       } catch (err: any) {
         console.error('Falha de conexão ao excluir produto no Supabase:', err?.message || err);
-        return { success: false, error: err?.message || 'Falha ao excluir produto no Supabase.' };
+        return { success: false, error: err?.message || 'Falha ao excluir produto no sistema.' };
       }
     }
 

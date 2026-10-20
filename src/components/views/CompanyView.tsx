@@ -218,7 +218,7 @@ export const CompanyView: React.FC = () => {
       } else {
         setFeedback({
           type: 'success',
-          message: 'Dados da empresa salvos e atualizados com sucesso no Supabase!',
+          message: 'Dados da empresa salvos e atualizados com sucesso!',
         });
 
         // Sincronizar contexto visual imediatamente
@@ -538,19 +538,19 @@ export const CompanyView: React.FC = () => {
                 Empresa Ativa
               </Badge>
               <Badge variant="green" size="sm">
-                Supabase RLS
+                Isolamento Seguro
               </Badge>
             </div>
           </div>
 
-          {/* Security & RLS Explanation Card */}
+          {/* Security Explanation Card */}
           <div className="p-4 rounded-2xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/30 space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold text-purple-900 dark:text-purple-300">
               <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
               <span>Privacidade &amp; Segurança ANT</span>
             </div>
             <p className="text-[11px] text-purple-800/80 dark:text-purple-300/80 leading-relaxed">
-              Os dados cadastrais desta empresa são vinculados exclusivamente ao seu identificador de usuário no Supabase através de políticas de <strong>Row Level Security</strong>. Nenhum outro usuário ou empresa tem acesso a essas informações.
+              Os dados cadastrais desta empresa são vinculados exclusivamente à sua conta e protegidos por criptografia e isolamento multitenant determinístico. Nenhum outro usuário ou empresa tem acesso a essas informações.
             </p>
           </div>
         </div>

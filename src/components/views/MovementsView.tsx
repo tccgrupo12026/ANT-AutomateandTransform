@@ -320,7 +320,7 @@ export const MovementsView: React.FC = () => {
         <div className="flex items-center gap-2.5 flex-wrap">
           <Badge variant="purple" size="md">
             <ShieldCheck className="w-3.5 h-3.5 mr-1 inline text-purple-600 dark:text-purple-400" />
-            Supabase RLS
+            Histórico Auditado
           </Badge>
 
           {canIn && (

@@ -181,7 +181,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           <div className="flex items-center justify-between px-3 py-1.5">
             <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              {isAntAdmin ? 'Admin ANT (SaaS)' : 'Módulos de Gestão'}
+              {isAntAdmin ? 'Administração ANT' : 'Módulos de Gestão'}
             </span>
             <span
               className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
@@ -317,7 +317,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[120px]">
-                {isAntAdmin ? 'ANT Plataforma SaaS' : companyName || 'Minha Empresa'}
+                {isAntAdmin ? 'ANT — Plataforma de Gestão' : companyName || 'Minha Empresa'}
               </span>
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 shrink-0">
                 {isAntAdmin ? 'Superadmin' : summary?.plan.name || 'Starter'}

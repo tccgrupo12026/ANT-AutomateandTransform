@@ -720,13 +720,13 @@ export const PlansView: React.FC = () => {
                 Painel de Testes e Simulação de Assinatura
               </h4>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Alterne os estados da assinatura para validar o comportamento do sistema sem gateways de pagamento reais.
+                Alterne os estados da assinatura para homologação e validação das regras de faturamento e acesso.
               </p>
             </div>
           </div>
 
           <Badge variant="purple" size="sm">
-            Modo Simulação SaaS
+            Ambiente de Homologação
           </Badge>
         </div>
 

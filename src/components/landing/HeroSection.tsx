@@ -39,7 +39,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-black text-purple-900 dark:text-purple-300">ANT</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                  Plataforma SaaS
+                  Plataforma Integrada
                 </span>
               </div>
               <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">

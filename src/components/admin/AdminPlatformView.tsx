@@ -66,7 +66,7 @@ export const AdminPlatformView: React.FC = () => {
 
   const supabaseConfigured = config.supabase.isConfigured;
 
-  const sqlInstruction = `-- Exemplo de atribuição de ant_admin para o criador da plataforma no Supabase:
+  const sqlInstruction = `-- Atribuição de permissão de Administrador ANT para a conta da plataforma:
 UPDATE auth.users
 SET raw_user_meta_data = raw_user_meta_data || '{"role": "ant_admin"}'::jsonb
 WHERE email = '${user?.email || 'admin@ant.app'}';`;
@@ -307,14 +307,14 @@ WHERE email = '${user?.email || 'admin@ant.app'}';`;
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <Database className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Supabase PostgreSQL</span>
+                  <span>Repositório de Dados Seguro</span>
                 </span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
                   Conectado
                 </span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Row Level Security ativo e tabelas de isolamento por empresa.
+                Políticas de segurança ativas e isolamento determinístico por empresa.
               </p>
             </div>
 
@@ -354,7 +354,7 @@ WHERE email = '${user?.email || 'admin@ant.app'}';`;
 {sqlInstruction}
             </pre>
             <p className="text-[11px] text-slate-500">
-              Execute no SQL Editor do Supabase para transformar qualquer conta em superadministrador do ANT.
+              Comando administrativo para conceder privilégios de superadministrador do ANT ao usuário desejado.
             </p>
           </div>
         </div>

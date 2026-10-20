@@ -142,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!supabase) {
       return {
         success: false,
-        error: 'O serviço de autenticação Supabase não está inicializado.',
+        error: 'O serviço de autenticação não está inicializado.',
       };
     }
 
@@ -173,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!supabase) {
       return {
         success: false,
-        error: 'O serviço de autenticação Supabase não está inicializado.',
+        error: 'O serviço de autenticação não está inicializado.',
       };
     }
 
@@ -240,7 +240,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!supabase) {
       return {
         success: false,
-        error: 'O serviço de autenticação Supabase não está inicializado.',
+        error: 'O serviço de autenticação não está inicializado.',
       };
     }
 
@@ -264,7 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!supabase) {
       return {
         success: false,
-        error: 'O serviço de autenticação Supabase não está inicializado.',
+        error: 'O serviço de autenticação não está inicializado.',
       };
     }
 

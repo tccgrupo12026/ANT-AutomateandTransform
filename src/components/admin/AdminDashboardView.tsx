@@ -120,7 +120,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onNaviga
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300">
               Painel Admin ANT
             </span>
-            <span className="text-xs text-slate-400 font-medium">Controle Executivo SaaS</span>
+            <span className="text-xs text-slate-400 font-medium">Plataforma Integrada de Gestão</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
             Dashboard Executivo da Plataforma

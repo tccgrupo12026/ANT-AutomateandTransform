@@ -62,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({ id, onOpenMobileMenu, onNavigate
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
             <span className="font-semibold text-purple-700 dark:text-purple-400">
-              {isAntAdmin ? 'ANT Plataforma SaaS' : companyName}
+              {isAntAdmin ? 'ANT — Plataforma de Gestão' : companyName}
             </span>{' '}
             • {isAntAdmin ? 'Painel dos Fundadores' : 'ANT Gestão'}
           </p>

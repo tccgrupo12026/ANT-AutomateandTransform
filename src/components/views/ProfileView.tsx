@@ -22,7 +22,7 @@ export const ProfileView: React.FC = () => {
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Informações cadastrais, credenciais de acesso Supabase Auth e sessão do usuário no ANT.
+            Informações cadastrais, credenciais de acesso seguro e sessão do usuário no ANT.
           </p>
         </div>
 
@@ -96,7 +96,7 @@ export const ProfileView: React.FC = () => {
                 <div className="p-3.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 text-xs text-purple-900 dark:text-purple-300 flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold">Sessão Segura:</span> Você está conectado à plataforma ANT com persistência automática de sessão via Supabase Auth.
+                    <span className="font-bold">Sessão Segura:</span> Você está conectado à plataforma ANT com persistência segura e criptografia ativa de credenciais.
                   </div>
                 </div>
               </div>

@@ -250,7 +250,7 @@ export const movementService = {
         }
       } catch (err: any) {
         console.error('Falha ao processar movimentação no Supabase:', err?.message || err);
-        return { data: null, error: err?.message || 'Falha ao salvar movimentação no Supabase.' };
+        return { data: null, error: err?.message || 'Falha ao salvar movimentação no sistema.' };
       }
     }
 

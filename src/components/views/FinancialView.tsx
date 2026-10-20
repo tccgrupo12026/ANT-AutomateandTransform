@@ -484,7 +484,7 @@ export const FinancialView: React.FC = () => {
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold inline-flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                Supabase RLS Protegido
+                Registro Seguro Auditado
               </span>
             </div>
 
@@ -501,7 +501,7 @@ export const FinancialView: React.FC = () => {
             <button
               onClick={() => loadFinancialData(true)}
               disabled={isRefreshing || isLoading}
-              title="Atualizar dados do Supabase"
+              title="Atualizar lançamentos financeiros"
               className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all cursor-pointer border border-white/15"
             >
               <RotateCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -1148,7 +1148,7 @@ export const FinancialView: React.FC = () => {
                   </span>
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Preencha os campos para salvar a movimentação no Supabase.
+                  Preencha os campos para salvar a movimentação financeira.
                 </p>
               </div>
 
@@ -1395,7 +1395,7 @@ export const FinancialView: React.FC = () => {
                   Excluir Lançamento Financeiro?
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Esta ação removerá o registro permanentemente do Supabase.
+                  Esta ação removerá o registro permanentemente do sistema.
                 </p>
               </div>
             </div>

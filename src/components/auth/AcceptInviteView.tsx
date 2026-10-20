@@ -164,7 +164,7 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({
 
           if (isRateLimit) {
             setErrorMessage(
-              'Limite de e-mails do Supabase atingido ("email rate limit exceeded"). O Supabase está tentando enviar e-mails de confirmação pelo seu servidor SMTP padrão (limite de 3/hora). Para resolver definitivamente: no painel do Supabase, acesse Authentication > Providers > Email e desmarque a opção "Confirm email". Como o colaborador já possui link de convite validado, a confirmação adicional por e-mail deve ser desativada.'
+              'Limite temporário de requisições de autenticação atingido. Por favor, aguarde alguns instantes ou entre em contato com o suporte.'
             );
             setIsSubmitting(false);
             return;
@@ -176,7 +176,7 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({
             if (!loginRes.success) {
               if (loginRes.error?.toLowerCase().includes('confirm')) {
                 setErrorMessage(
-                  'Este e-mail já possui cadastro no Supabase, mas requer confirmação. Desative a opção "Confirm email" em Authentication > Providers > Email no painel do Supabase para liberar o acesso imediato.'
+                  'Este e-mail já possui cadastro na plataforma e requer ativação. Entre em contato com o administrador da sua empresa para liberar o acesso imediato.'
                 );
               } else {
                 setErrorMessage(
@@ -197,18 +197,18 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({
         } else if (signUpData?.user) {
           createdUserId = signUpData.user.id;
 
-          // Se retornou sessão ativa (Confirm email desmarcado no Supabase)
+          // Se retornou sessão ativa
           if (signUpData.session) {
             sessionEstablished = true;
           } else {
-            // Se sessão for nula (Confirm email ainda ativo no Supabase), tenta login direto
+            // Se sessão for nula, tenta login direto
             const loginRes = await signIn(invitation.email.trim(), password);
             if (loginRes.success) {
               sessionEstablished = true;
             } else {
               if (loginRes.error?.toLowerCase().includes('confirm')) {
                 setErrorMessage(
-                  'Conta criada com sucesso no Supabase! Porém, a confirmação de e-mail ainda está ativa no projeto. Desative a opção "Confirm email" em Authentication > Providers > Email no painel do Supabase para que novos colaboradores entrem direto sem envio de e-mails secundários.'
+                  'Conta criada com sucesso! Entre em contato com o administrador da sua empresa para liberação direta do seu acesso.'
                 );
                 setIsSubmitting(false);
                 return;
@@ -227,7 +227,7 @@ export const AcceptInviteView: React.FC<AcceptInviteViewProps> = ({
           return;
         }
       } else {
-        setErrorMessage('Não foi possível vincular o usuário criado no Supabase. Tente novamente.');
+        setErrorMessage('Não foi possível vincular o usuário criado ao sistema. Tente novamente.');
         setIsSubmitting(false);
         return;
       }

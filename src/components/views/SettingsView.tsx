@@ -1392,8 +1392,8 @@ export const SettingsView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Supabase PostgreSQL RLS Ativo</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span>Ambiente Seguro e Conectado</span>
           </div>
         </div>
       </Card>

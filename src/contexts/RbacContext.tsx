@@ -144,10 +144,10 @@ export const RbacProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let targetCompanyName = companyName || 'Minha Empresa';
       let foundMember: CompanyMember | null = null;
 
-      // 0. Superadministrador da plataforma SaaS ANT
+      // 0. Superadministrador da plataforma ANT
       if (metaRole === 'ant_admin') {
         resolvedRole = 'ant_admin';
-        targetCompanyName = 'ANT Gestão — Plataforma SaaS';
+        targetCompanyName = 'ANT Gestão — Plataforma Integrada';
         resolvedJobTitle = 'Administrador Global ANT';
         resolvedPermissions = defaultOwnerPerms;
       } else {

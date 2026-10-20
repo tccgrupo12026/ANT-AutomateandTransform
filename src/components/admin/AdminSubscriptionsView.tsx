@@ -195,7 +195,7 @@ export const AdminSubscriptionsView: React.FC = () => {
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300">
               Admin ANT
             </span>
-            <span className="text-xs text-slate-400 font-medium">Gestão Financeira & SaaS</span>
+            <span className="text-xs text-slate-400 font-medium">Gestão Comercial & Planos</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
             Gestão de Planos & Cobranças
@@ -624,7 +624,7 @@ export const AdminSubscriptionsView: React.FC = () => {
     ],
     payer_company_id: selectedInvoice.company_id,
     metadata: {
-      platform: 'ANT Gestão SaaS',
+      platform: 'ANT — Automate and Transform',
       status_target: selectedInvoice.status,
     },
   },

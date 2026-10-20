@@ -166,7 +166,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold inline-flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                Supabase PostgreSQL
+                Dados Sincronizados
               </span>
             </div>
 
@@ -183,7 +183,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
             <button
               onClick={() => loadDashboardData(true)}
               disabled={isRefreshing || isLoading}
-              title="Atualizar dados do Supabase"
+              title="Atualizar dados do painel"
               className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-all cursor-pointer border border-white/15"
             >
               <RotateCcw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -531,7 +531,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigate }) => {
               <Card
                 id="company-summary-card"
                 title="Dados da Microempresa"
-                subtitle="Identificação cadastral ativa no Supabase"
+                subtitle="Identificação cadastral ativa"
                 headerAction={
                   <button
                     onClick={() => onNavigate('empresa')}
